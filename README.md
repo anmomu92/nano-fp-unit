@@ -14,4 +14,4 @@ So far, for the proper behavior of the unit, some asumptions must be taken into 
 > 
 > The 16 bits from the *binary16* format have to be in the lower half of the 32-bit wide *num* input.
 
-[ x ] *binary16* to *binary32* adaptation.
+- [x] *binary16* to *binary32* adaptation.
