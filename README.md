@@ -1,9 +1,17 @@
 # Nano FP unit
 
-Esta unidad está pensada para llevar a cabo operaciones en punto flotante conforme al estándar IEEE 754.
+This unit is meant to perform IEEE 754-2019 arithmetic operations.
 
-Por el momento, para el correcto funcionamiento de la unidad, se deben tener en cuenta una serie de asunciones:
+So far, for the proper behavior of the unit, some asumptions must be taken into account:
 
-- El número de entrada tiene un ancho de 32 bits.
+- Signals connected to the *num* input must be 32-bit wide to avoid zero extensions of the signal.
 
-![Diagrama de bloques de la unidad.](block-diagram.drawio.png)
+![Block diagram of the unit.](block-diagram.drawio.png)
+
+## Features
+
+> [!WARNING]
+> 
+> The 16 bits from the *binary16* format have to be in the lower half of the 32-bit wide *num* input.
+
+[ x ] *binary16* to *binary32* adaptation.
