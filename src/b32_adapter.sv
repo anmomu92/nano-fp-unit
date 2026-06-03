@@ -18,7 +18,7 @@ state_e cur_state, next_state;
 
 always_ff @(posedge clk) begin : STATE_MEMORY
     if (!rst_n) begin
-	fp_num <= 32'1000_0000_0000_0000_0000_0000_0000_0000;	// signed zero
+	fp_num <= 32'b0;	// signed zero
 	cur_state <= FORWARD;
     end else begin
 	cur_state <= next_state;
@@ -30,16 +30,17 @@ always_comb begin : NEXT_STATE_LOGIC
 	FORWARD: begin
 	    if(format)
 		next_state = ADAPT;
+	end
 	ADAPT: next_state = FORWARD;
 	default: next_state = FORWARD;
     endcase
 end
 
 always_comb begin : OUTPUT_LOGIC
-    fp_num <= 32'1000_0000_0000_0000_0000_0000_0000_0000;   // signed zero
+    fp_num = 32'b0;   // signed zero
 
     case(cur_state)
-	FORWARD: fp_num = num;
+	FORWARD: fp_num = 32'b0;
 	ADAPT: begin
 	    case(format)
 		2'b01: begin // b16
@@ -49,15 +50,16 @@ always_comb begin : OUTPUT_LOGIC
 		    fp_num[22:0] = {num[9:0],13'b0};
 		end
 		2'b10: begin // integer
-		    FORWARD: fp_num = num;
+		    fp_num = 32'b0;
 		end
 		2'b11: begin // TODO
-		    FORWARD: fp_num = num;
+		    fp_num = 32'b0;
 		end
 		default:
-		    FORWARD: fp_num = num;
+		    fp_num = 32'b0;
 	    endcase
 	end
+	default: fp_num = num;
     endcase
 end
 
