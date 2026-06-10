@@ -10,7 +10,7 @@
  *   It receives two exponents and calculates their difference.
  *
  * Parameters :
- *   EXP_WIDTH    - width of the exponents 
+ *   EXP_WIDTH    - width of the exponents
  *
  * Interface :
  *   exp_A        - exponent of number A
@@ -28,26 +28,23 @@
 
 module exp_diff #(
     EXP_WIDTH = 8
-)(
+) (
     input logic [EXP_WIDTH-1:0] exp_A,
     input logic [EXP_WIDTH-1:0] exp_B,
     output logic sel,
     output logic [EXP_WIDTH-1:0] n
 );
 
-logic [EXP_WIDTH-1:0] diff;
+  logic [EXP_WIDTH-1:0] diff;
 
-always_comb begin : OUTPUT_LOGIC
-    diff = exp_A - exp_B;
+  always_comb begin : OUTPUT_LOGIC
+    sel = (exp_A > exp_B) ? 1 : 0;
 
-    if(diff < 0) begin
-	sel = 0;	// select exponent A
-	n = -diff;
+    if (sel) begin
+      n = exp_A - exp_B;
+    end else begin
+      n = exp_B - exp_A;
     end
-    else begin
-	sel = 1;	// select exponent B
-	n = diff;
-    end
-end
+  end
 
 endmodule
