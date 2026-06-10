@@ -26,8 +26,8 @@ module top_tb;
   // --------------------------------------------------------------
   // Variables
   // --------------------------------------------------------------
-  logic [EXP_WIDTH-1:0] exp_a;
-  logic [EXP_WIDTH-1:0] exp_b;
+  logic [EXP_WIDTH-1:0] exp_A;
+  logic [EXP_WIDTH-1:0] exp_B;
   logic sel;
   logic [EXP_WIDTH-1:0] n;
 
@@ -37,8 +37,8 @@ module top_tb;
   exp_diff #(
       .EXP_WIDTH(EXP_WIDTH)
   ) exp_diff_i (
-      .exp_a(exp_a),
-      .exp_b(exp_b),
+      .exp_A(exp_A),
+      .exp_B(exp_B),
       .sel(sel),
       .n(n)
   );
@@ -50,6 +50,16 @@ module top_tb;
     $display("=================================================");
     $display("  Exponent Difference Testbench - SystemVerilog  ");
     $display("=================================================");
+
+    exp_A = 11;
+    exp_B = 5;
+
+    #125_000 exp_A = 3;
+    exp_B = 7;
+
+    #125_000 exp_A = 2;
+    exp_B = 2;
+
   end
 
   // --------------------------------------------------------------
@@ -60,4 +70,13 @@ module top_tb;
     $display("[TIMEOUT] Simulation exceeded time limit.");
     $finish();
   end
+
+  // --------------------------------------------------------------
+  // Waveform dump
+  // --------------------------------------------------------------
+  initial begin
+    $dumpfile("vcd/exp_diff.vcd");
+    $dumpvars(0, top_tb);
+  end
+
 endmodule
