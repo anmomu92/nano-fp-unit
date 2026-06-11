@@ -34,9 +34,9 @@ module top_tb;
   // --------------------------------------------------------------
   // Instantiation
   // --------------------------------------------------------------
-  exp_diff #(
+  alu #(
       .WIDTH(WIDTH)
-  ) exp_diff_i (
+  ) alu_i (
       .sig_A(sig_A),
       .sig_B(sig_B),
       .op_code(op_code),
@@ -77,7 +77,7 @@ module top_tb;
   // Waveform dump
   // --------------------------------------------------------------
   initial begin
-    $dumpfile("vcd/exp_diff.vcd");
+    $dumpfile("vcd/alu.vcd");
     $dumpvars(0, top_tb);
   end
 
