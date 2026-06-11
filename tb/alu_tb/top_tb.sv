@@ -51,15 +51,18 @@ module top_tb;
     $display("  ALU Testbench - SystemVerilog  ");
     $display("=================================================");
 
-    sig_A = 30'h0000FFFF;
-    sig_B = 30'h3FFF0000;
+    sig_A   = 30'h0000FFFF;
+    sig_B   = 30'h3FFF0000;
+    op_code = 1'b1;
 
     #125_000 sig_A = 30'h0000FFFF;
-    sig_B = 30'h3FFFFFFF;
+    sig_B   = 30'h3FFFFFFF;
+    op_code = 1'b0;
 
 
     #125_000 sig_A = 30'h0000421F;
-    sig_B = 30'h001A08CB;
+    sig_B   = 30'h001A08CB;
+    op_code = 1'b1;
 
 
   end
