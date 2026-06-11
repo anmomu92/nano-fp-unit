@@ -13,8 +13,6 @@
  *   - WIDTH - width of the significands.
  *
  * Interface :
- *   clk      - clock signal
- *   rst_n    - active low reset signal
  *   sig_A    - exponent of number A
  *   sig_B    - exponent of number B
  *   op_code  - operation code
@@ -28,26 +26,21 @@
  ******************************************************************************/
 
 module alu #(
-    WIDTH = 23
+    WIDTH = 30
 ) (
-    input clk,
-    input rst_n,
+    input logic [WIDTH-1:0] sig_A,
+    input logic [WIDTH-1:0] sig_B,
+    input logic op_code,
 
-    input [WIDTH-1:0] sig_A,
-    input [WIDTH-1:0] sig_B,
-    input [3:0] op_code,
-
-    output logic [30:0] res
+    output logic [WIDTH-1:0] res
 );
 
-  always_ff @(posedge clk) begin : CLK_LOGIC
-    if (!rst_n) begin
-      res <= 0;
-    end
-  end
-
   always_comb begin : OUTPUT_LOGIC
-
+    unique case (op_code)
+      1'b0: res = sig_A - sig_B;
+      1'b1: res = sig_A + sig_B;
+      default: res = 0;
+    endcase
   end
 
 endmodule

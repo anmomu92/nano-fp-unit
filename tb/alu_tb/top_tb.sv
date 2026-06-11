@@ -55,15 +55,26 @@ module top_tb;
     sig_B   = 30'h3FFF0000;
     op_code = 1'b1;
 
-    #125_000 sig_A = 30'h0000FFFF;
+    #50_000 sig_A = 30'h0000FFFF;
     sig_B   = 30'h3FFFFFFF;
     op_code = 1'b0;
 
 
-    #125_000 sig_A = 30'h0000421F;
+    #50_000 sig_A = 30'h0000421F;
     sig_B   = 30'h001A08CB;
     op_code = 1'b1;
 
+    #50_000 sig_A = 30'h0000000F;
+    sig_B   = 30'h00000003;
+    op_code = 1'b1;
+
+    #50_000 sig_A = 30'h0000000F;
+    sig_B   = 30'h00000003;
+    op_code = 1'b0;
+
+    #50_000 sig_A = 30'h00000003;
+    sig_B   = 30'h0000000F;
+    op_code = 1'b0;
 
   end
 
