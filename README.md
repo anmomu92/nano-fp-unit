@@ -4,7 +4,7 @@
 
 [![GPL-3.0 license](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
 [![State](https://img.shields.io/badge/State-active-brightgreen?style=flat-square)]()
-[![Wiki](https://img.shields.io/badge/Wiki-documentation-blue?style=flat-square)](https://github.com/anmomu92/nano-fp-unit/wiki)
+[![Wiki](https://img.shields.io/badge/Wiki-documentation-yellow?style=flat-square)](https://github.com/anmomu92/nano-fp-unit/wiki)
 
 </div>
 
