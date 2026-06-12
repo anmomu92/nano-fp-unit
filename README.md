@@ -1,4 +1,12 @@
-# Nano FP unit
+<h1 align="center">Nano FP unit</h1>
+
+<div align="center">
+
+[![GPL-3.0 license](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
+[![State](https://img.shields.io/badge/State-active-brightgreen?style=flat-square)]()
+[![Wiki](https://img.shields.io/badge/Wiki-documentation-blue?style=flat-square)](https://github.com/anmomu92/nano-fp-unit/wiki)
+
+</div>
 
 This unit is meant to perform IEEE 754-2019 arithmetic operations.
 
