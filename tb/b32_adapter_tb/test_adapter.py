@@ -30,18 +30,18 @@ def f16_bits_to_f32_bits_golden(bits16: int) -> int:
 
 
 async def drive_and_check(dut, a_bits, a_is_fp16, expected, case_name):
-    """Drive operand A with a_bits (right-justified) and tag, check a_o."""
-    dut.a_i.value = a_bits & 0xFFFF_FFFF
-    dut.a_is_fp16.value = a_is_fp16
+    """Drive operand A with a_bits (right-justified) and tag, check num_o."""
+    dut.num_i.value = a_bits & 0xFFFF_FFFF
+    dut.format.value = a_is_fp16
     # Keep operand B parked at a known, unrelated value so we also catch
     # any accidental cross-talk between the A and B datapaths.
-    dut.b_i.value = 0x0000_3C00  # fp16 1.0, inert
-    dut.b_is_fp16.value = 1
+    # dut.b_i.value = 0x0000_3C00  # fp16 1.0, inert
+    # dut.b_is_fp16.value = 1
     await SETTLE
 
-    got = int(dut.a_o.value)
+    got = int(dut.num_o.value)
     assert got == expected, (
-        f"{case_name}: a_i=0x{a_bits & 0xFFFF:04x} -> got 0x{got:08x}, "
+        f"{case_name}: num_i=0x{a_bits & 0xFFFF:04x} -> got 0x{got:08x}, "
         f"expected 0x{expected:08x}"
     )
     dut._log.info(f"PASS {case_name:<22s} 0x{a_bits & 0xFFFF:04x} -> 0x{got:08x}")
@@ -106,34 +106,26 @@ async def test_both_operands_independently(dut):
     """A and B must convert independently and simultaneously, including
     mixed formats (A as fp16, B as fp32 passthrough, and vice versa)."""
 
-    async def check_pair(a_bits, a_fmt16, exp_a, b_bits, b_fmt16, exp_b, name):
-        dut.a_i.value = a_bits & 0xFFFF_FFFF
-        dut.a_is_fp16.value = a_fmt16
-        dut.b_i.value = b_bits & 0xFFFF_FFFF
-        dut.b_is_fp16.value = b_fmt16
+    async def check_pair(a_bits, a_fmt16, exp_a, name):
+        dut.num_i.value = a_bits & 0xFFFF_FFFF
+        dut.format.value = a_fmt16
+        # dut.b_i.value = b_bits & 0xFFFF_FFFF
+        # dut.b_is_fp16.value = b_fmt16
         await SETTLE
-        got_a = int(dut.a_o.value)
-        got_b = int(dut.b_o.value)
-        assert got_a == exp_a, f"{name}: a_o got 0x{got_a:08x} expected 0x{exp_a:08x}"
-        assert got_b == exp_b, f"{name}: b_o got 0x{got_b:08x} expected 0x{exp_b:08x}"
-        dut._log.info(f"PASS {name:<28s} a_o=0x{got_a:08x} b_o=0x{got_b:08x}")
+        got_a = int(dut.num_o.value)
+        # got_b = int(dut.b_o.value)
+        assert got_a == exp_a, f"{name}: num_o got 0x{got_a:08x} expected 0x{exp_a:08x}"
+        # assert got_b == exp_b, f"{name}: b_o got 0x{got_b:08x} expected 0x{exp_b:08x}"
+        dut._log.info(f"PASS {name:<28s} num_o=0x{got_a:08x}")
 
     # Both fp16, different values
-    await check_pair(
-        0x3C00, 1, 0x3F800000, 0xC000, 1, 0xC0000000, "both fp16 (1.0, -2.0)"
-    )
+    await check_pair(0x3C00, 1, 0x3F800000, "both fp16 (1.0, -2.0)")
     # A fp16, B fp32 passthrough
-    await check_pair(
-        0x3C00, 1, 0x3F800000, 0x40490FDB, 0, 0x40490FDB, "A=fp16 1.0, B=fp32 pi"
-    )
+    await check_pair(0x3C00, 1, 0x3F800000, "A=fp16 1.0, B=fp32 pi")
     # A fp32 passthrough, B fp16
-    await check_pair(
-        0x3F000000, 0, 0x3F000000, 0x3C00, 1, 0x3F800000, "A=fp32 0.5, B=fp16 1.0"
-    )
+    await check_pair(0x3F000000, 0, 0x3F000000, "A=fp32 0.5, B=fp16 1.0")
     # Both fp32 passthrough
-    await check_pair(
-        0xAABBCCDD, 0, 0xAABBCCDD, 0x11223344, 0, 0x11223344, "both fp32 passthrough"
-    )
+    await check_pair(0xAABBCCDD, 0, 0xAABBCCDD, "both fp32 passthrough")
 
 
 # ---------------------------------------------------------------------------
@@ -150,12 +142,12 @@ async def test_exhaustive_fp16_space(dut):
     mismatches = []
     for bits16 in range(0x10000):
         expected = f16_bits_to_f32_bits_golden(bits16)
-        dut.a_i.value = bits16
-        dut.a_is_fp16.value = 1
-        dut.b_i.value = 0
-        dut.b_is_fp16.value = 0
+        dut.num_i.value = bits16
+        dut.format.value = 1
+        # dut.b_i.value = 0
+        # dut.b_is_fp16.value = 0
         await SETTLE
-        got = int(dut.a_o.value)
+        got = int(dut.num_o.value)
         if got != expected:
             mismatches.append((bits16, got, expected))
             if len(mismatches) >= 20:

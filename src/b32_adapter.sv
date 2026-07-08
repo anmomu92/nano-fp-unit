@@ -54,7 +54,7 @@ module b32_adapter #(
 
       for (i = 9; i >= 0; i--) begin
         if (!one) begin
-          if (x[i])
+          if (t16[i])
             // a 1 is found
             one = 1'b1;
           else
