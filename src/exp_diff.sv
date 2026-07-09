@@ -27,23 +27,25 @@
  ******************************************************************************/
 
 module exp_diff #(
-    EXP_WIDTH = 8
+    parameter int EXP_WIDTH = 8
 ) (
-    input logic [EXP_WIDTH-1:0] exp_A,
-    input logic [EXP_WIDTH-1:0] exp_B,
-    output logic sel,
-    output logic [EXP_WIDTH-1:0] n
+    input logic [EXP_WIDTH-1:0] exp_a_i,
+    input logic [EXP_WIDTH-1:0] exp_b_i,
+    output logic sel_o,
+    output logic [EXP_WIDTH-1:0] shift_o
 );
 
   logic [EXP_WIDTH-1:0] diff;
 
   always_comb begin : OUTPUT_LOGIC
-    sel = (exp_A > exp_B) ? 1 : 0;
+    sel_o = (exp_a_i >= exp_b_i) ? 1 : 0;
 
-    if (sel) begin
-      n = exp_A - exp_B;
+    if (sel_o) begin
+      // exponent A is bigger, shift exponent B
+      shift_o = exp_a_i - exp_b_i;
     end else begin
-      n = exp_B - exp_A;
+      // exponent B is bigger, shift exponent A
+      shift_o = exp_b_i - exp_a_i;
     end
   end
 
