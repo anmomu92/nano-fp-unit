@@ -11,13 +11,13 @@
 // Outputs:
 //  sig_o - the shifted significand
 
-module sig_shifter #(
+module sig_shift #(
     parameter int WIDTH = 24,
     parameter int MAX_WIDTH = 27,
     parameter int SHIFT_WIDTH = 8
 ) (
     input logic [WIDTH-1:0] sig_i,
-    input logic shift_i,
+    input logic [MAX_WIDTH-1:0] shift_i,
 
     output logic [WIDTH-1:0] sig_o,
     output logic guard_o,
