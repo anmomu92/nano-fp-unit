@@ -36,8 +36,8 @@ def golden_reference(significand: int, shift: int):
 
     wide = SIG_WIDTH + MAX_SHIFT
 
-    result = significand << MAX_SHIFT  # this is done so data is not lost
-    result_shift = result >> shift
+    padded = significand << MAX_SHIFT  # this is done so data is not lost
+    result_shift = padded >> shift
 
     mask_wide = (1 << wide) - 1
     result_shift &= mask_wide
