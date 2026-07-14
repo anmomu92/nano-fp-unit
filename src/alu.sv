@@ -41,13 +41,12 @@ module alu #(
 
     input logic swap_i,  // indicates if operands were swapped during exp_diff
 
-    output logic [WIDTH-1:0] res_o,
+    output logic [SIG_WIDTH:0] res_o,
     output logic guard_o,
     output logic round_o,
     output logic sticky_o
 );
 
-  logic [  SIG_WIDTH:0] aux;
   logic [SIG_WIDTH-1:0] op_a;
   logic [SIG_WIDTH-1:0] op_b;
 
@@ -62,15 +61,15 @@ module alu #(
   end
 
   always_comb begin : OUTPUT_LOGIC
-    unique case (op_code)
+    unique case (op_code_i)
       1'b0: begin  // substraction
-        aux = {1'b0, op_a} - {1'b0, op_b};
+        res_o = {1'b0, op_a} - {1'b0, op_b};
 
       end
       1'b1: begin  // addition
-        aux = {1'b0, op_a} + {1'b0, op_b};
+        res_o = {1'b0, op_a} + {1'b0, op_b};
       end
-      default: res = 0;
+      default: res_o = 0;
     endcase
   end
 
