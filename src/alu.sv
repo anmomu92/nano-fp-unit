@@ -47,9 +47,9 @@ module alu #(
     output logic sticky_o
 );
 
-  logic [SIG_WIDTH:0] aux;
-  logic [SIG_WIDTH:0] op_a;
-  logic [SIG_WIDTH:0] op_b;
+  logic [  SIG_WIDTH:0] aux;
+  logic [SIG_WIDTH-1:0] op_a;
+  logic [SIG_WIDTH-1:0] op_b;
 
   always_comb begin : SWAP_OPERANDS
     if (swap_i) begin
