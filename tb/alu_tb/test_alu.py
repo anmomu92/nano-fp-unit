@@ -56,6 +56,8 @@ async def drive_and_check(dut, sig_a, sig_b, op_code, g, r, s, swap):
     dut.sticky_i.value = s
     dut.swap_i.value = swap
 
+    await SETTLE
+
     # expected values
     exp_res, exp_g, exp_r, exp_s = golden_reference(
         sig_a, sig_a, op_code, g, r, s, swap
