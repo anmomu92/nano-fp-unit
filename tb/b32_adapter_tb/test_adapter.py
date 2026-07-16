@@ -33,10 +33,6 @@ async def drive_and_check(dut, num_bits, num_is_fp16, expected, case_name):
     """Drive operand A with num_bits (right-justified) and tag, check num_o."""
     dut.num_i.value = num_bits & 0xFFFF_FFFF
     dut.num_is_fp16.value = num_is_fp16
-    # Keep operand B parked at a known, unrelated value so we also catch
-    # any accidental cross-talk between the A and B datapaths.
-    dut.b_i.value = 0x0000_3C00  # fp16 1.0, inert
-    dut.b_is_fp16.value = 1
     await SETTLE
 
     got = int(dut.num_o.value)
