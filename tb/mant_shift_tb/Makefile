@@ -13,9 +13,9 @@ THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 PROJECT_ROOT := $(abspath $(THIS_DIR)/../..)
 SRC_DIR := $(PROJECT_ROOT)/src
 
-VERILOG_SOURCES = $(SRC_DIR)/sig_shift.sv
+VERILOG_SOURCES = $(SRC_DIR)/mant_shift.sv
 
-COCOTB_TOPLEVEL = sig_shift
-COCOTB_TEST_MODULES = test_sig_shift
+COCOTB_TOPLEVEL = mant_shift
+COCOTB_TEST_MODULES = test_mant_shift
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
