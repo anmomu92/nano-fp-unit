@@ -3,7 +3,7 @@
 //
 // IEEE-754 binary16 -> binary32.
 //
-// The operand is carried on a 32-bit bus together with a format signal:
+// The operand is carried on a 32-bit bus together with a format_i signal:
 //   - tag == 1 : the operand is encoded as binary16 in bus[15:0]
 //                (bus[31:16] is don't-care / ignored)
 //   - tag == 0 : the operand is already encoded as binary32 on the full bus
@@ -30,9 +30,7 @@ module b32_adapter #(
     WIDTH = 32
 ) (
     input logic [WIDTH-1:0] num_i,
-    input logic [1:0] format,  // maybe define an enum in a package
-    input logic [3:0] op_type,
-    input logic [3:0] round_mode,
+    input logic [1:0] format_i,  // maybe define an enum in a package
 
     output logic [WIDTH-1:0] num_o
 );
@@ -54,7 +52,7 @@ module b32_adapter #(
 
       for (i = 9; i >= 0; i--) begin
         if (!one) begin
-          if (x[i])
+          if (t16[i])
             // a 1 is found
             one = 1'b1;
           else
@@ -123,8 +121,8 @@ module b32_adapter #(
 
   // Combinational Logic
   always_comb begin : OUTPUT_LOGIC
-    // we distinguish different input formats (so far, only b16)
-    case (format)
+    // we distinguish different input format_is (so far, only b16)
+    case (format_i)
       2'd1: begin
         num_o = b16_to_b32(num_i[15:0]);  // b16 -> b32
       end
