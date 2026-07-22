@@ -21,8 +21,7 @@
      * 1 | 1 | 0 | (-A) + B -> substract magnitudes | greatest operand
      * 1 | 1 | 1 | (-A) + (-B) -> add magnitudes | 1
      *
-     * effective_add  = operation ^ sign_a ^ sign_b
-     *
+     * magnitude_add = operation ^ sign_a ^ sign_b
  *
  * Parameters :
  *   - MANT_WIDTH - width of the significands.
@@ -128,7 +127,7 @@ module alu #(
 
   always_comb begin : MANT_VALUE
     if (magnitude_add) sign_result_o = sign_a_i;
-    else sign_result_o = carry_raw ? sign_a_i : sign_shifted;
+    else sign_result_o = carry_raw ? sign_b_i : sign_a_i;
   end
 
 endmodule
