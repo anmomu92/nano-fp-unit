@@ -116,7 +116,7 @@ module alu #(
       1'b1: begin  // addition
         raw_sum = {1'b0, op_a} + {1'b0, op_b};
       end
-      default: res = 0;
+      default: res_o = 0;
     endcase
   end
 

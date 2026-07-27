@@ -32,7 +32,8 @@ module normalizer #(
     // inputs
     // --------
     input logic [MANT_WIDTH-1:0] mant_i,
-    input logic [ EXP_WIDTH-1:0] exp_i,
+    input logic [EXP_WIDTH-1:0] exp_i,
+    input logic sign_i,
 
     // rounding bits
     input logic guard_i,
@@ -42,13 +43,14 @@ module normalizer #(
     // carry bit
     input logic carry_i,
 
-    input logic result_zero_i,
+    input logic zero_i,
 
     // --------
     // outputs
     // --------
-    output logic [MANT_WIDTH-1:0] norm_o,
-    output logic [ EXP_WIDTH-1:0] exp_o,
+    output logic [MANT_WIDTH-1:0] mant_o,
+    output logic [EXP_WIDTH-1:0] exp_o,
+    output logic sign_o,
 
     // rounding bits
     output logic guard_o,
@@ -71,7 +73,7 @@ module normalizer #(
   // internal signals
   logic [EXT_WIDTH-1:0] extended_mant;
   logic [EXT_WIDTH-1:0] shifted_mant;
-  logic [EXT_WIDTH-1:0] lzc;
+  logic [EXT_WIDTH-1:0] lzc_eff;
 
   // ---------------
   // functions
@@ -136,7 +138,7 @@ module normalizer #(
   assign extended_mant = {
     mant_i[MANT_WIDTH-1:0], guard_i, round_i, sticky_i
   };  // merge all signals into one
-  assign shifted_mant = extended_mant << lzc;
+  assign shifted_mant = extended_mant << lzc_eff;
 
   // combinatorial logic
   logic [SHIFT_WIDTH-1:0] zero_cnt;
@@ -146,12 +148,12 @@ module normalizer #(
     zero_cnt = lzc(mant_i[MANT_WIDTH-1:0]);
     adj = exp_adj(exp_i[EXP_WIDTH-1:0], zero_cnt);
 
-    lzc = zero_cnt - adj;
+    lzc_eff = zero_cnt - adj;
   end
 
   always_comb begin : OUTPUT_LOGIC
     sign_o = sign_i;
-    zero_o = result_zero_i;
+    zero_o = zero_i;
     overflow_o = 1'b0;
     underflow_o = 1'b0;
 
@@ -164,22 +166,22 @@ module normalizer #(
     end else if (carry_i) begin  // overflow
       mant_o = {carry_i, mant_i[MANT_WIDTH-1:1]};
       exp_o = exp_i + 1'b1;
-      g = mant_i[0];
-      r = guard_i;
-      s = round_i | sticky_i;
+      guard_o = mant_i[0];
+      round_o = guard_i;
+      sticky_o = round_i | sticky_i;
 
       // check if exponent overflows
       if (exp_i >= (EXP_MAX - 1'b1)) overflow_o = 1'b1;
     end else begin
       if (mant_i[MANT_WIDTH-1]) begin  // normal
-        mant_i = mant_i[MANT_WIDTH-1:0];
+        mant_o = mant_i[MANT_WIDTH-1:0];
         exp_o = exp_i[EXP_WIDTH-1:0];
-        g = guard_i;
-        r = round_i;
-        s = sticky_i;
+        guard_o = guard_i;
+        round_o = round_i;
+        sticky_o = sticky_i;
       end else begin  // underflow
         mant_o = shifted_mant[EXT_WIDTH-1:3];
-        exp_o = exp_i - lzc;
+        exp_o = exp_i - lzc_eff;
         guard_o = shifted_mant[2];
         round_o = shifted_mant[1];
         sticky_o = shifted_mant[0];
