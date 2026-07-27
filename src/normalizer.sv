@@ -156,8 +156,15 @@ module normalizer #(
     zero_o = zero_i;
     overflow_o = 1'b0;
     underflow_o = 1'b0;
-    if (carry_i) begin  // overflow
-      mant_o = {carry_i, mant_i[MANT_WIDTH-2:0]};
+
+    if (zero_i) begin
+      mant_o = 0;
+      exp_o = 0;
+      guard_o = 0;
+      round_o = 0;
+      sticky_o = 0;
+    end else if (carry_i) begin  // overflow
+      mant_o = {carry_i, mant_i[MANT_WIDTH-1:1]};
       exp_o = exp_i + 1'b1;
       guard_o = mant_i[0];
       round_o = guard_i;
@@ -178,7 +185,7 @@ module normalizer #(
         guard_o = shifted_mant[2];
         round_o = shifted_mant[1];
         sticky_o = shifted_mant[0];
-        if (!shifted_mant[EXT_WIDTH-1] && !(exp_i - lzc_eff)) underflow_o = 1'b1;
+        if (!shifted_mant[EXT_WIDTH-1] && ((exp_i - lzc) <= 0)) underflow_o = 1'b1;
       end
     end
   end
