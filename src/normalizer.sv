@@ -154,8 +154,15 @@ module normalizer #(
     zero_o = result_zero_i;
     overflow_o = 1'b0;
     underflow_o = 1'b0;
-    if (carry_i) begin  // overflow
-      mant_o = {carry_i, mant_i[MANT_WIDTH-2:0]};
+
+    if (zero_i) begin
+      mant_o = 0;
+      exp_o = 0;
+      guard_o = 0;
+      round_o = 0;
+      sticky_o = 0;
+    end else if (carry_i) begin  // overflow
+      mant_o = {carry_i, mant_i[MANT_WIDTH-1:1]};
       exp_o = exp_i + 1'b1;
       g = mant_i[0];
       r = guard_i;
