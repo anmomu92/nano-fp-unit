@@ -3,6 +3,8 @@
 #   make            # functional test + functional-coverage %   (Icarus + cocotb-coverage)
 #   make coverage   # RTL line/toggle coverage %                (standalone Verilator)
 #   make clean      # remove all build/sim/coverage artifacts
+#   make DEBUG_INTERNALS=1
+#   make WAVES=1
 #
 # Two independent notions of "coverage" are reported:
 #   • functional (scenario) coverage — from the cocotb testbench, prints a
@@ -24,6 +26,9 @@ SRC_DIR      := $(PROJECT_ROOT)/src
 VERILOG_SOURCES     = $(SRC_DIR)/normalizer.sv
 COCOTB_TOPLEVEL     = normalizer
 COCOTB_TEST_MODULES = test_normalizer
+
+DEBUG_INTERNALS ?= 0
+export DEBUG_INTERNALS
 
 .PHONY: coverage
 coverage:

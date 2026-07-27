@@ -2,12 +2,14 @@
 cocotb testbench for normalizer.sv
 """
 
+import os
 import random
 
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
 
+DEBUG_INTERNALS = os.environ.get("DEBUG_INTERNALS", "0") == "1"
 SETTLE = Timer(1, unit="ns")
 
 # widths
@@ -38,13 +40,12 @@ def lzc(x, width=MANT_WIDTH):
 # Golden reference model
 # -----------------------
 def golden_reference(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i):
-    mant24 = mant_i & MANT_MASK
-
-    # variables to distinguish different situations
+    # we distinguish the different cases
     carry_case = carry_i  # overflow
     normal_case = (not carry_case) and ((mant_i >> (MANT_WIDTH - 1)) & 1)  # normal
 
-    lz_raw = lzc(mant24)
+    # for subnormal inputs
+    lz_raw = lzc(mant_i)
     headroom = 0 if exp_i == 0 else (exp_i - 1)
 
     # if exp_i - lzc <= 1
@@ -57,12 +58,15 @@ def golden_reference(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i):
     shifted_mant = (extended_mant << lz_use) & EXT_MASK
 
     # we make a dictionary for the outputs
-    out = dict(sign=sign_i, zero=zero_i, underflow=0, overflow=0)
+    out: dict[str, Any] = dict(sign=sign_i, zero=zero_i, underflow=0, overflow=0)
+
+    # depending on the case, we update the rest of the output values
     if zero_i:
         out.update(mant=0, exp=0, g=0, r=0, s=0)
     elif carry_case:
         out.update(
-            mant=(mant_i >> 1) & MANT_MASK,
+            mant=(carry_i << (MANT_WIDTH - 1))
+            | ((mant_i >> 1) & ((1 << (MANT_WIDTH - 1)) - 1)),
             exp=(exp_i + 1) & EXP_MASK,
             g=mant_i & 1,
             r=g,
@@ -70,18 +74,29 @@ def golden_reference(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i):
             overflow=1 if exp_i >= EXP_MASK - 1 else 0,
         )
     elif normal_case:
-        out.update(mant=mant24, exp=exp_i, g=g, r=r, s=s)
+        out.update(mant=mant_i, exp=exp_i, g=g, r=r, s=s)
     else:
         out.update(
             mant=(shifted_mant >> 3) & MANT_MASK,
             g=(shifted_mant >> 2) & 1,
-            r=(shifted_mant > 1) & 1,
+            r=(shifted_mant >> 1) & 1,
             s=shifted_mant & 1,
         )
         if subnormal:
             out.update(exp=0, underflow=1)
         else:
             out.update(exp=(exp_i - lz_use) & EXP_MASK)
+
+    out["_internals"] = dict(
+        carry_case=int(bool(carry_case)),
+        normal_case=int(bool(normal_case)),
+        cancel_case=int(not (zero_i or carry_case or normal_case)),
+        lz_raw=lz_raw,
+        headroom=headroom,
+        lz_use=lz_use,
+        subnormal=subnormal,
+        shifted_mant=shifted_mant,
+    )
 
     return out
 
@@ -91,7 +106,7 @@ def classify_case(mant_i, carry_i, zero_i):
         return "zero"
     if carry_i:
         return "carry"
-    if (mant_i >> (MANT_WIDTH - 1)) & 1:
+    if (mant_i >> MANT_WIDTH) & 1:
         return "normal"
     return "cancel"
 
@@ -148,7 +163,7 @@ def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov
 async def drive_and_check(
     dut, mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, label=""
 ):
-    dut.mant_i.value = mant_i & MANT_MASK
+    dut.mant_i.value = mant_i
     dut.carry_i.value = carry_i
     dut.guard_i.value = g
     dut.round_i.value = r
@@ -161,7 +176,7 @@ async def drive_and_check(
 
     expected = golden_reference(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i)
     context = (
-        f"mant=0x{mant_i:07x} grs={g}{r}{s} carry={carry_i} sign={sign_i} "
+        f"mant=0x{mant_i:06x} grs={g}{r}{s} carry={carry_i} sign={sign_i} "
         f"zero={zero_i} exp={exp_i}"
     )
 
@@ -177,7 +192,35 @@ async def drive_and_check(
         overflow=int(dut.overflow_o.value),
     )
 
+    dut._log.info(f"\n\n")
+
+    if DEBUG_INTERNALS:
+        gi = expected["_internals"]
+        case = (
+            "zero"
+            if zero_i
+            else (
+                "carry"
+                if gi["carry_case"]
+                else "normal_case" if gi["normal_case"] else "cancel"
+            )
+        )
+        dut._log.info(
+            f"\nINTERNAL GOLDEN REFERENCE VALUES\t [Context] : {context}\n"
+            f"  carry_case = {gi['carry_case']}\n"
+            f"  normal_case = {gi['normal_case']}\n"
+            f"  cancel_case = {gi['cancel_case']} -> {case:<6s} | "
+            f"  lz_raw = {gi['lz_raw']:2d} lz_use = {gi['lz_use']:2d} \n"
+            f"  headroom = {gi['headroom']:3d} subnormal = {gi['subnormal']}\n"
+        )
+
     for k in expected:
+        if k == "_internals":
+            continue
+        elif k == "mant":
+            assert (
+                got[k] == expected[k]
+            ), f"{k}: got 0x{got[k]:06x} expected 0x{expected[k]:06x}  [{context}]"
         assert (
             got[k] == expected[k]
         ), f"{k}: got {got[k]} expected {expected[k]}  [{context}]"
@@ -333,6 +376,6 @@ async def test_random_sweep(dut):
         dut._log.info(f"  {'TOTAL':<22s} {total:6.2f}%")
         dut._log.info("-----------------------------------")
 
-        coverage_db.export_toxml(filename="coverage_functional.xml")
+        coverage_db.export_to_xml(filename="coverage_functional.xml")
 
         assert total == 100.0, f"Functional coverage incomplete: {total:.2f}%"
