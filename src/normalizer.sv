@@ -183,7 +183,7 @@ module normalizer #(
         guard_o = shifted_mant[2];
         round_o = shifted_mant[1];
         sticky_o = shifted_mant[0];
-        if (!shifted_mant[EXT_WIDTH-1] && !(exp_i - lzc)) underflow_o = 1'b1;
+        if (!shifted_mant[EXT_WIDTH-1] && ((exp_i - lzc) <= 0)) underflow_o = 1'b1;
       end
     end
   end
