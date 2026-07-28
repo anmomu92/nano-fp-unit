@@ -138,6 +138,7 @@ def sample(t):
 
 
 def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov):
+    # classify the exponent in different regions
     if exp_i == 0:
         region = "zero"
     elif exp_i <= 32:
@@ -148,6 +149,7 @@ def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov
         region = "high"
     else:
         region = "mid"
+
     return dict(
         case=classify_case(mant_i, carry_i, zero_i),
         sign=sign_i,
@@ -163,7 +165,7 @@ def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov
 async def drive_and_check(
     dut, mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, label=""
 ):
-    dut.mant_i.value = mant_i
+    dut.mant_i.value = mant_i & MANT_MASK
     dut.carry_i.value = carry_i
     dut.guard_i.value = g
     dut.round_i.value = r
@@ -180,6 +182,7 @@ async def drive_and_check(
         f"zero={zero_i} exp={exp_i}"
     )
 
+    # obtained results from DUT
     got = dict(
         mant=int(dut.mant_o.value),
         exp=int(dut.exp_o.value),
@@ -191,6 +194,10 @@ async def drive_and_check(
         underflow=int(dut.underflow_o.value),
         overflow=int(dut.overflow_o.value),
     )
+
+    # internal DUT signals
+    lz_eff = int(dut.lz_eff.value)
+    shifted_mant = int(dut.shifted_mant.value)
 
     dut._log.info(f"\n\n")
 
@@ -212,6 +219,12 @@ async def drive_and_check(
             f"  cancel_case = {gi['cancel_case']} -> {case:<6s} | "
             f"  lz_raw = {gi['lz_raw']:2d} lz_use = {gi['lz_use']:2d} \n"
             f"  headroom = {gi['headroom']:3d} subnormal = {gi['subnormal']}\n"
+        )
+
+        dut._log.info(
+            f"\n DUT INTERNAL SIGNALS\n"
+            f"  lz_eff = {lz_eff}\n"
+            f"  shifted_mant = 0b{shifted_mant:27b}\n"
         )
 
     for k in expected:
