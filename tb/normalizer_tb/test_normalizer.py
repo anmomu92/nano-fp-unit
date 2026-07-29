@@ -4,12 +4,20 @@ cocotb testbench for normalizer.sv
 
 import os
 import random
+from typing import Any
 
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
 
+# -----------------------
+# VARIABLES AND CONSTANTS
+# -----------------------
+# environment
 DEBUG_INTERNALS = os.environ.get("DEBUG_INTERNALS", "0") == "1"
+SWEEP_N = int(os.environ.get("SWEEP_N", "8000"))
+
+# timing
 SETTLE = Timer(1, unit="ns")
 
 # widths
@@ -368,27 +376,53 @@ async def test_random_sweep(dut):
 
         await drive_and_check(dut, mant, g, r, s, carry, sign, zero, exp)
 
-        # functional coverage
-        dut._log.info("----- FUNCTIONAL COVERAGE -----")
-        total = coverage_db["top"].cover_percentage
-        for name in [
-            "top.case",
-            "top.sign",
-            "top.underflow",
-            "top.overflow",
-            "top.grs",
-            "top.exp_region",
-            "top.case_x_sign",
-        ]:
-            cp = coverage_db[name]
-            dut._log.info(
-                f"  {name:<22s} {cp.cover_percentage:6.2f}%  "
-                f"({cp.coverage}/{cp.size} bins)"
-            )
 
-        dut._log.info(f"  {'TOTAL':<22s} {total:6.2f}%")
-        dut._log.info("-----------------------------------")
+def report_coverage(dut):
+    """Print every coverpoint with per-bin hit counts, flagging cold bins.
 
-        coverage_db.export_to_xml(filename="coverage_functional.xml")
+    Set COVERAGE_VERBOSE=1 to also list the hit counts of bins that WERE
+    covered (useful for spotting bins hit only once or twice, which are
+    technically covered but statistically thin).
+    """
+    verbose = os.environ.get("COVERAGE_VERBOSE", "0") == "1"
+    names = [
+        "top.case",
+        "top.sign",
+        "top.underflow",
+        "top.overflow",
+        "top.grs",
+        "top.exp_region",
+        "top.case_x_sign",
+    ]
 
-        assert total == 100.0, f"Functional coverage incomplete: {total:.2f}%"
+    dut._log.info("──────────── FUNCTIONAL COVERAGE ────────────")
+    all_missing = []
+    for name in names:
+        cp = coverage_db[name]
+        detail = cp.detailed_coverage  # OrderedDict: bin -> hit count
+        missing = [b for b, hits in detail.items() if hits == 0]
+        flag = "" if not missing else f"   <-- {len(missing)} MISSING"
+        dut._log.info(
+            f"  {name:<22s} {cp.cover_percentage:6.2f}%  "
+            f"({cp.coverage}/{cp.size} bins){flag}"
+        )
+        for b in missing:
+            dut._log.info(f"        MISSING bin: {b!r}")
+            all_missing.append(f"{name}={b!r}")
+        if verbose:
+            for b, hits in detail.items():
+                if hits:
+                    dut._log.info(f"        hit {hits:6d}x : {b!r}")
+
+    total = coverage_db["top"].cover_percentage
+    dut._log.info(f"  {'TOTAL':<22s} {total:6.2f}%")
+    dut._log.info("─────────────────────────────────────────────")
+
+    coverage_db.export_to_xml(filename="coverage_functional.xml")
+
+    # Failure message names the uncovered bins, so the log line that fails
+    # tells you what to go fix rather than just quoting a percentage.
+    assert total == 100.0, (
+        f"Functional coverage incomplete: {total:.2f}%. "
+        f"Uncovered bins ({len(all_missing)}): " + ", ".join(all_missing)
+    )

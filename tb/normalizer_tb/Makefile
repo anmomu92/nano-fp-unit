@@ -27,8 +27,18 @@ VERILOG_SOURCES     = $(SRC_DIR)/normalizer.sv
 COCOTB_TOPLEVEL     = normalizer
 COCOTB_TEST_MODULES = test_normalizer
 
+
+# Environment variable to show internal signals
 DEBUG_INTERNALS ?= 0
 export DEBUG_INTERNALS
+
+# Size of the randomised sweep (lower => reproduce partial coverage)
+SWEEP_N ?= 8000
+export SWEEP_N
+ 
+# Also list hit counts for bins that WERE covered (spots thinly-hit bins)
+COVERAGE_VERBOSE ?= 0
+export COVERAGE_VERBOSE
 
 .PHONY: coverage
 coverage:
