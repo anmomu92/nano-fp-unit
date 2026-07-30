@@ -188,7 +188,7 @@ module normalizer #(
     end else begin
       if (normal_case) begin  // normal
         mant_o = mant_i[MANT_WIDTH-1:0];
-        exp_o = exp_i[EXP_WIDTH-1:0];
+        exp_o = (exp_i == '0) ? {(EXP_WIDTH - 1) {1'b0}} : exp_i[EXP_WIDTH-1:0];
 
         // GRS bits
         guard_o = guard_i;

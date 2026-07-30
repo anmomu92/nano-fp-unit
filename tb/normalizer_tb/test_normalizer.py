@@ -82,7 +82,8 @@ def golden_reference(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i):
             overflow=1 if exp_i >= EXP_MASK - 1 else 0,
         )
     elif normal_case:
-        out.update(mant=mant_i, exp=exp_i, g=g, r=r, s=s)
+        exp_f = 1 if exp_i == 0 else exp_i
+        out.update(mant=mant_i, exp=exp_f, g=g, r=r, s=s)
     else:
         out.update(
             mant=(shifted_mant >> 3) & MANT_MASK,
