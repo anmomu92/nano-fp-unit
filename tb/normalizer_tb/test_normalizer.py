@@ -115,7 +115,7 @@ def classify_case(mant_i, carry_i, zero_i):
         return "zero"
     if carry_i:
         return "carry"
-    if (mant_i >> MANT_WIDTH) & 1:
+    if (mant_i >> (MANT_WIDTH - 1)) & 1:
         return "normal"
     return "cancel"
 
@@ -376,6 +376,8 @@ async def test_random_sweep(dut):
             exp = rng.randint(0, EXP_MASK)
 
         await drive_and_check(dut, mant, g, r, s, carry, sign, zero, exp)
+
+    report_coverage(dut)
 
 
 def report_coverage(dut):
