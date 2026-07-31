@@ -110,7 +110,7 @@ module alu #(
   always_comb begin : OPERATION
     unique case (magnitude_add)
       1'b0: begin  // substraction (2's complement)
-        raw_sum = {1'b0, op_a} - {1'b0, ~op_b} + {{EXT_WIDTH{1'b0}}, 1'b1};
+        raw_sum = {1'b0, op_a} + {1'b0, ~op_b} + {{EXT_WIDTH{1'b0}}, 1'b1};
         sign_o = swap_i; // if there was a swap, it means that the greater value was substracted from the lower one
       end
       1'b1: begin  // addition

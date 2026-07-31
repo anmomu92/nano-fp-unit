@@ -4,12 +4,20 @@ cocotb testbench for normalizer.sv
 
 import os
 import random
+from typing import Any
 
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
 
+# -----------------------
+# VARIABLES AND CONSTANTS
+# -----------------------
+# environment
 DEBUG_INTERNALS = os.environ.get("DEBUG_INTERNALS", "0") == "1"
+SWEEP_N = int(os.environ.get("SWEEP_N", "8000"))
+
+# timing
 SETTLE = Timer(1, unit="ns")
 
 # widths
@@ -74,7 +82,8 @@ def golden_reference(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i):
             overflow=1 if exp_i >= EXP_MASK - 1 else 0,
         )
     elif normal_case:
-        out.update(mant=mant_i, exp=exp_i, g=g, r=r, s=s)
+        exp_f = 1 if exp_i == 0 else exp_i
+        out.update(mant=mant_i, exp=exp_f, g=g, r=r, s=s)
     else:
         out.update(
             mant=(shifted_mant >> 3) & MANT_MASK,
@@ -106,7 +115,7 @@ def classify_case(mant_i, carry_i, zero_i):
         return "zero"
     if carry_i:
         return "carry"
-    if (mant_i >> MANT_WIDTH) & 1:
+    if (mant_i >> (MANT_WIDTH - 1)) & 1:
         return "normal"
     return "cancel"
 
@@ -138,6 +147,7 @@ def sample(t):
 
 
 def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov):
+    # classify the exponent in different regions
     if exp_i == 0:
         region = "zero"
     elif exp_i <= 32:
@@ -148,6 +158,7 @@ def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov
         region = "high"
     else:
         region = "mid"
+
     return dict(
         case=classify_case(mant_i, carry_i, zero_i),
         sign=sign_i,
@@ -163,7 +174,7 @@ def make_sample(mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, exp_out, uf, ov
 async def drive_and_check(
     dut, mant_i, g, r, s, carry_i, sign_i, zero_i, exp_i, label=""
 ):
-    dut.mant_i.value = mant_i
+    dut.mant_i.value = mant_i & MANT_MASK
     dut.carry_i.value = carry_i
     dut.guard_i.value = g
     dut.round_i.value = r
@@ -180,6 +191,7 @@ async def drive_and_check(
         f"zero={zero_i} exp={exp_i}"
     )
 
+    # obtained results from DUT
     got = dict(
         mant=int(dut.mant_o.value),
         exp=int(dut.exp_o.value),
@@ -191,6 +203,10 @@ async def drive_and_check(
         underflow=int(dut.underflow_o.value),
         overflow=int(dut.overflow_o.value),
     )
+
+    # internal DUT signals
+    lz_eff = int(dut.lz_eff.value)
+    shifted_mant = int(dut.shifted_mant.value)
 
     dut._log.info(f"\n\n")
 
@@ -212,6 +228,12 @@ async def drive_and_check(
             f"  cancel_case = {gi['cancel_case']} -> {case:<6s} | "
             f"  lz_raw = {gi['lz_raw']:2d} lz_use = {gi['lz_use']:2d} \n"
             f"  headroom = {gi['headroom']:3d} subnormal = {gi['subnormal']}\n"
+        )
+
+        dut._log.info(
+            f"\n DUT INTERNAL SIGNALS\n"
+            f"  lz_eff = {lz_eff}\n"
+            f"  shifted_mant = 0b{shifted_mant:27b}\n"
         )
 
     for k in expected:
@@ -355,27 +377,55 @@ async def test_random_sweep(dut):
 
         await drive_and_check(dut, mant, g, r, s, carry, sign, zero, exp)
 
-        # functional coverage
-        dut._log.info("----- FUNCTIONAL COVERAGE -----")
-        total = coverage_db["top"].cover_percentage
-        for name in [
-            "top.case",
-            "top.sign",
-            "top.underflow",
-            "top.overflow",
-            "top.grs",
-            "top.exp_region",
-            "top.case_x_sign",
-        ]:
-            cp = coverage_db[name]
-            dut._log.info(
-                f"  {name:<22s} {cp.cover_percentage:6.2f}%  "
-                f"({cp.coverage}/{cp.size} bins)"
-            )
+    report_coverage(dut)
 
-        dut._log.info(f"  {'TOTAL':<22s} {total:6.2f}%")
-        dut._log.info("-----------------------------------")
 
-        coverage_db.export_to_xml(filename="coverage_functional.xml")
+def report_coverage(dut):
+    """Print every coverpoint with per-bin hit counts, flagging cold bins.
 
-        assert total == 100.0, f"Functional coverage incomplete: {total:.2f}%"
+    Set COVERAGE_VERBOSE=1 to also list the hit counts of bins that WERE
+    covered (useful for spotting bins hit only once or twice, which are
+    technically covered but statistically thin).
+    """
+    verbose = os.environ.get("COVERAGE_VERBOSE", "0") == "1"
+    names = [
+        "top.case",
+        "top.sign",
+        "top.underflow",
+        "top.overflow",
+        "top.grs",
+        "top.exp_region",
+        "top.case_x_sign",
+    ]
+
+    dut._log.info("──────────── FUNCTIONAL COVERAGE ────────────")
+    all_missing = []
+    for name in names:
+        cp = coverage_db[name]
+        detail = cp.detailed_coverage  # OrderedDict: bin -> hit count
+        missing = [b for b, hits in detail.items() if hits == 0]
+        flag = "" if not missing else f"   <-- {len(missing)} MISSING"
+        dut._log.info(
+            f"  {name:<22s} {cp.cover_percentage:6.2f}%  "
+            f"({cp.coverage}/{cp.size} bins){flag}"
+        )
+        for b in missing:
+            dut._log.info(f"        MISSING bin: {b!r}")
+            all_missing.append(f"{name}={b!r}")
+        if verbose:
+            for b, hits in detail.items():
+                if hits:
+                    dut._log.info(f"        hit {hits:6d}x : {b!r}")
+
+    total = coverage_db["top"].cover_percentage
+    dut._log.info(f"  {'TOTAL':<22s} {total:6.2f}%")
+    dut._log.info("─────────────────────────────────────────────")
+
+    coverage_db.export_to_xml(filename="coverage_functional.xml")
+
+    # Failure message names the uncovered bins, so the log line that fails
+    # tells you what to go fix rather than just quoting a percentage.
+    assert total == 100.0, (
+        f"Functional coverage incomplete: {total:.2f}%. "
+        f"Uncovered bins ({len(all_missing)}): " + ", ".join(all_missing)
+    )
