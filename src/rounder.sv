@@ -48,9 +48,11 @@ module rounder #(
     // status flags
     input logic overflow_i,
     input logic underflow_i,
+    input logic zero_i,
 
     // round mode
     input logic round_mode_i,
+
     // -------
     // OUTPUTS
     // -------
