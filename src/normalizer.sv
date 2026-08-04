@@ -103,6 +103,10 @@ module normalizer #(
   //
   // - Outputs:
   //    lzc - the number of leading zeros of the mantissa.
+  //
+  // - Improvements:
+  //   Adapt to a lookup table / decoder 
+
   function automatic logic [SHIFT_WIDTH-1:0] lzc(input logic [MANT_WIDTH-1:0] mant);
     integer i;
     logic one;
@@ -120,6 +124,7 @@ module normalizer #(
           end
         end
       end
+
       lzc = cnt;
     end
   endfunction

@@ -71,10 +71,10 @@ def golden_reference(
     g_i,
     r_i,
     s_i,
-    ovf_i,
-    uf_i,
-    z_i,
     rm_i,
+    ovf_i=0,
+    uf_i=0,
+    z_i=0,
 ):
     frac = mant_i & FRAC_MASK
     lsb = mant_i & 1
@@ -187,7 +187,9 @@ def sample(t):
 # ------
 
 
-async def drive_and_check(dut, mant, exp, sign, g, r, s, ovf, uf, zero, mode, label=""):
+async def drive_and_check(
+    dut, mant, exp, sign, g, r, s, mode, ovf=0, uf=0, zero=0, label=""
+):
 
     dut.mant_i.value = mant
     dut.exp_i.value = exp
@@ -202,7 +204,7 @@ async def drive_and_check(dut, mant, exp, sign, g, r, s, ovf, uf, zero, mode, la
 
     await SETTLE
 
-    exp = golden_reference(mant, exp, sign, g, r, s, ovf, uf, zero, mode)
+    exp = golden_reference(mant, exp, sign, g, r, s, mode, ovf, uf, zero)
     context = (
         f"mant: 0x{mant:06x} exp: 0x{exp:02x} sign: {sign}"
         f"g: {g} r: {r} s: {s}"
@@ -238,12 +240,183 @@ async def drive_and_check(dut, mant, exp, sign, g, r, s, ovf, uf, zero, mode, la
 @cocotb.test()
 async def test_rne(dut):
     await drive_and_check(
-        dut, 0x800000, 0xF0, 1, 1, 0, 0, 0, 0, RoundMode.RNE, "round up"
-    )
-    await drive_and_check(dut, 0x800000, 0xF0, 1, 0, 0, 0, 0, 0, RoundMode.RNE, "tie")
-    await drive_and_check(
-        dut, 0x800000, 0xF0, 1, 0, 0, 0, 0, 0, RoundMode.RNE, "tie with even lsb"
+        dut, 0x800000, 0xFE, 0, 1, 0, 0, RoundMode.RNE, 0, 0, 0, "round to infinity"
     )
     await drive_and_check(
-        dut, 0x800001, 0xF0, 1, 0, 0, 0, 0, 0, RoundMode.RNE, "tie with odd lsb"
+        dut, 0x800000, 0xF0, 0, 1, 0, 0, RoundMode.RNE, 0, 0, 0, "tie with even lsb"
     )
+    await drive_and_check(
+        dut, 0x800001, 0xF0, 0, 1, 0, 0, RoundMode.RNE, 0, 0, 0, "tie with odd lsb"
+    )
+    # test grs combinations
+    for g in [0, 1]:
+        for r in [0, 1]:
+            for s in [0, 1]:
+                await drive_and_check(
+                    dut,
+                    0x800000,
+                    0xF0,
+                    0,
+                    g,
+                    r,
+                    s,
+                    RoundMode.RNE,
+                    0,
+                    0,
+                    0,
+                    "RNE with g:{g} r:{r} s:{s}",
+                )
+
+
+@cocotb.test()
+async def test_rtz(dut):
+    await drive_and_check(
+        dut, 0x800000, 0xF0, 1, 0, 0, 0, RoundMode.RTZ, 0, 0, 0, "round negative number"
+    )
+    await drive_and_check(
+        dut, 0x800000, 0xF0, 0, 0, 0, 0, RoundMode.RTZ, 0, 0, 0, "round positive number"
+    )
+
+    # test grs combinations
+    for g in [0, 1]:
+        for r in [0, 1]:
+            for s in [0, 1]:
+                await drive_and_check(
+                    dut,
+                    0x800000,
+                    0xF0,
+                    0,
+                    g,
+                    r,
+                    s,
+                    RoundMode.RTZ,
+                    0,
+                    0,
+                    0,
+                    "RTZ with g:{g} r:{r} s:{s}",
+                )
+
+
+@cocotb.test()
+async def test_rdn(dut):
+    await drive_and_check(
+        dut, 0xFFFFFF, 0xFE, 1, 0, 0, 0, RoundMode.RDN, 0, 0, 0, "round to -infty"
+    )
+    await drive_and_check(
+        dut,
+        0xFFFFFF,
+        0xFE,
+        0,
+        0,
+        0,
+        0,
+        RoundMode.RDN,
+        0,
+        0,
+        0,
+        "round biggest positive",
+    )
+
+    # test grs combinations
+    for g in [0, 1]:
+        for r in [0, 1]:
+            for s in [0, 1]:
+                await drive_and_check(
+                    dut,
+                    0x800000,
+                    0xF0,
+                    0,
+                    g,
+                    r,
+                    s,
+                    RoundMode.RDN,
+                    0,
+                    0,
+                    0,
+                    "RDN with g:{g} r:{r} s:{s}",
+                )
+
+
+@cocotb.test()
+async def test_rup(dut):
+    await drive_and_check(
+        dut, 0xFFFFFF, 0xFE, 0, 0, 0, 0, RoundMode.RUP, 0, 0, 0, "round to +infty"
+    )
+    await drive_and_check(
+        dut,
+        0xFFFFFF,
+        0xFE,
+        1,
+        0,
+        0,
+        0,
+        RoundMode.RUP,
+        0,
+        0,
+        0,
+        "round biggest negative",
+    )
+
+    # test grs combinations
+    for g in [0, 1]:
+        for r in [0, 1]:
+            for s in [0, 1]:
+                await drive_and_check(
+                    dut,
+                    0x800000,
+                    0xF0,
+                    0,
+                    g,
+                    r,
+                    s,
+                    RoundMode.RUP,
+                    0,
+                    0,
+                    0,
+                    "RUP with g:{g} r:{r} s:{s}",
+                )
+
+
+@cocotb.test()
+async def test_zero_passthrough(dut):
+    """zero_i forces zero output, sign preserved, no flags."""
+    await drive_and_check(
+        dut, 0x000000, 0, 0, 0, 0, 0, RoundMode.RNE, zero=1, label="+0"
+    )
+    await drive_and_check(
+        dut, 0x000000, 0, 1, 0, 0, 0, RoundMode.RNE, zero=1, label="-0"
+    )
+    await drive_and_check(
+        dut, 0x123456, 99, 0, 1, 1, 1, RoundMode.RDN, zero=1, label="zero dominates GRS"
+    )
+
+
+@cocotb.test()
+async def test_underflow_flag(dut):
+    await drive_and_check(dut, 0x000000, 0x00, 0, 0, 0, 0, RoundMode.RNE, 1, label="+0")
+    await drive_and_check(dut, 0x000000, 0x00, 1, 0, 0, 0, RoundMode.RNE, 1, label="-0")
+
+
+@cocotb.test()
+async def test_overflow_flag(dut):
+    """This test is only for overflows comming from the normalizer module."""
+    for mode in [
+        RoundMode.RNE,
+        RoundMode.RTZ,
+        RoundMode.RDN,
+        RoundMode.RUP,
+        RoundMode.RMM,
+    ]:
+        for sign in [0, 1]:
+            await drive_and_check(
+                dut,
+                0xFFFFFF,
+                0xFF,
+                sign,
+                1,
+                0,
+                0,
+                mode,
+                ovf=1,
+                label=f"incoming overflow: MODE: {mode} sign: {sign}",
+            )
