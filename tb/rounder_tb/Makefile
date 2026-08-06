@@ -23,9 +23,9 @@ THIS_DIR     := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 PROJECT_ROOT := $(abspath $(THIS_DIR)/../..)
 SRC_DIR      := $(PROJECT_ROOT)/src
 
-VERILOG_SOURCES     = $(SRC_DIR)/normalizer.sv
-COCOTB_TOPLEVEL     = normalizer
-COCOTB_TEST_MODULES = test_normalizer
+VERILOG_SOURCES     = $(SRC_DIR)/rounder.sv
+COCOTB_TOPLEVEL     = rounder 
+COCOTB_TEST_MODULES = test_rounder
 
 
 # Environment variable to show internal signals
