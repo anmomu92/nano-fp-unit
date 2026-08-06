@@ -2,6 +2,7 @@
 cocotb testbench for the rounder.sv module
 """
 
+import os
 import random
 from enum import Enum
 
@@ -81,8 +82,11 @@ def golden_reference(
 
     round_up = rounding_decision(rm_i, sign_i, g_i, r_i, s_i, lsb)
 
+    if ovf_i:
+        round_up = 0
+
     exp_frac = (exp_i << FRAC_WIDTH) | frac
-    exp_frac_r = ((exp_i << FRAC_WIDTH) | frac) + round_up
+    exp_frac_r = exp_frac + round_up
 
     exp_r = (exp_frac_r >> FRAC_WIDTH) & EXP_MASK
     exp_f = 0
@@ -123,31 +127,33 @@ def golden_reference(
 
     ovf_f = ovf_raw and not z_i
     uf_f = 1 if (exp_f == 0 and not z_i and inexact) else 0
-    res_f = (sign_i << RES_WIDTH) | (exp_f << FRAC_WIDTH) | frac_f
+    res_f = (sign_i << (RES_WIDTH - 1)) | (exp_f << FRAC_WIDTH) | frac_f
 
     return dict(
-        sign=sign_i,
-        exp=exp_f,
-        frac=frac_f,
-        res=res_f,
-        ovf=ovf_f,
-        uf=uf_f,
-        inexact=inexact,
-        round_up=round_up,
+        sign_o=sign_i,
+        exp_o=exp_f,
+        frac_o=frac_f,
+        res_o=res_f,
+        ovf_o=ovf_f,
+        uf_o=uf_f,
+        inexact_o=inexact,
+        round_up_o=round_up,
     )
 
 
 # coverage functions
-def classify(mant, exp, sign, g, r, s, mode, zero, gold):
+def classify(mant, exp, sign, g, r, s, mode, zero, gold, ovf_i=0):
     if zero:
         return "zero"
-    if gold["round_up"] and (mant & FRAC_MASK) == FRAC_MASK:
+    if ovf_i:
+        return "incoming_overflow"
+    if gold["round_up_o"] and (mant & FRAC_MASK) == FRAC_MASK:
         if exp == 0:
             return "subnormal_promote"
         return "mantissa_overflow"
-    if gold["overflow"]:
+    if gold["ovf_o"]:
         return "overflow"
-    if gold["round_up"]:
+    if gold["round_up_o"]:
         return "round_up"
     return "no_round"
 
@@ -155,7 +161,13 @@ def classify(mant, exp, sign, g, r, s, mode, zero, gold):
 @CoverPoint(
     "top.mode",
     xf=lambda t: t["mode"],
-    bins=[RoundMode.RNE, RoundMode.RTZ, RoundMode.RDN, RoundMode.RUP, RoundMode.RMM],
+    bins=[
+        RoundMode.RNE.value,
+        RoundMode.RTZ.value,
+        RoundMode.RDN.value,
+        RoundMode.RUP.value,
+        RoundMode.RMM.value,
+    ],
 )
 @CoverPoint(
     "top.scenario",
@@ -178,6 +190,11 @@ def classify(mant, exp, sign, g, r, s, mode, zero, gold):
 @CoverPoint("top.inexact", xf=lambda t: t["inexact"], bins=[0, 1])
 @CoverPoint("top.overflow", xf=lambda t: t["overflow"], bins=[0, 1])
 @CoverPoint("top.underflow", xf=lambda t: t["underflow"], bins=[0, 1])
+@CoverPoint("top.overflow_in", xf=lambda t: t["ovf_i"], bins=[0, 1])
+@CoverCross("top.overflow_x_mode", items=["top.overflow", "top.mode"])
+@CoverCross("top.mode_x_sign", items=["top.mode", "top.sign"])
+@CoverCross("top.ovfin_x_mode", items=["top.overflow_in", "top.mode"])
+@CoverCross("top.ovfin_x_sing", items=["top.overflow_in", "top.sign"])
 def sample(t):
     pass
 
@@ -188,46 +205,87 @@ def sample(t):
 
 
 async def drive_and_check(
-    dut, mant, exp, sign, g, r, s, mode, ovf=0, uf=0, zero=0, label=""
+    dut,
+    mant_i,
+    exp_i,
+    sign_i,
+    g_i,
+    r_i,
+    s_i,
+    mode_i,
+    ovf_i=0,
+    uf_i=0,
+    zero_i=0,
+    label="",
 ):
 
-    dut.mant_i.value = mant
-    dut.exp_i.value = exp
-    dut.sign_i.value = sign
-    dut.guard_i.value = g
-    dut.round_i.value = r
-    dut.sticky_i.value = s
-    dut.overflow_i.value = ovf
-    dut.underflow_i.value = uf
-    dut.zero_i.value = zero
-    dut.round_mode_i.value = mode
+    dut.mant_i.value = mant_i
+    dut.exp_i.value = exp_i
+    dut.sign_i.value = sign_i
+    dut.guard_i.value = g_i
+    dut.round_i.value = r_i
+    dut.sticky_i.value = s_i
+    dut.overflow_i.value = ovf_i
+    dut.underflow_i.value = uf_i
+    dut.zero_i.value = zero_i
+    dut.round_mode_i.value = mode_i
 
     await SETTLE
 
-    exp = golden_reference(mant, exp, sign, g, r, s, mode, ovf, uf, zero)
+    expected = golden_reference(
+        mant_i, exp_i, sign_i, g_i, r_i, s_i, mode_i, ovf_i, uf_i, zero_i
+    )
     context = (
-        f"mant: 0x{mant:06x} exp: 0x{exp:02x} sign: {sign}"
-        f"g: {g} r: {r} s: {s}"
-        f"ovf: {ovf} uf: {uf} zero: {zero}"
-        f"mode: {mode}"
+        f"mant:0x{mant_i:06x} exp:0x{exp_i:02x} sign:{sign_i} "
+        f"g:{g_i} r:{r_i} s:{s_i} "
+        f"ovf:{ovf_i} uf:{uf_i} zero:{zero_i} "
+        f"mode:{RoundMode(mode_i)}"
     )
 
     got = dict(
-        sign=dut.sign_o.value,
-        exp=dut.exp_o.value,
-        frac=dut.frac_o.value,
-        res=dut.result_o.value,
-        ovf=dut.overflow_o.value,
-        uf=dut.underflow_o.value,
-        inexact=dut.inexact_o.value,
+        sign_o=int(dut.sign_o.value),
+        exp_o=int(dut.exp_o.value),
+        frac_o=int(dut.frac_o.value),
+        res_o=int(dut.result_o.value),
+        ovf_o=int(dut.overflow_o.value),
+        uf_o=int(dut.underflow_o.value),
+        inexact_o=int(dut.inexact_o.value),
     )
 
-    for k in ("sign", "exp", "frac", "res", "ovf", "uf", "inexact"):
-        assert got[k] == exp[k], f"{k}: got {got[k]} expected {exp[k]}  [{context}]"
+    for k in ("sign_o", "exp_o", "frac_o", "res_o", "ovf_o", "uf_o", "inexact_o"):
+        if k == "frac_o":
+            assert (
+                got[k] == expected[k]
+            ), f"{k}: got 0x{got[k]:06x} expected 0x{expected[k]:06x}\n  [{context}]"
+        elif k == "exp_o":
+            assert (
+                got[k] == expected[k]
+            ), f"{k}: got 0x{got[k]:02x} expected 0x{expected[k]:02x}\n  [{context}]"
+        elif k == "res_o":
+            assert (
+                got[k] == expected[k]
+            ), f"{k}: got 0x{got[k]:08x} expected 0x{expected[k]:08x}\n  [{context}]"
+        else:
+            assert (
+                got[k] == expected[k]
+            ), f"{k}: got {got[k]} expected {expected[k]}\n  [{context}]"
 
     # for coverage
     sample(
-        dict(mode=mode, scenario=classify(mant, exp, sign, g, r, s, mode, zero, exp))
+        dict(
+            mode=mode_i,
+            scenario=classify(
+                mant_i, exp_i, sign_i, g_i, r_i, s_i, mode_i, zero_i, expected, ovf_i
+            ),
+            sign=sign_i,
+            g=g_i,
+            r=r_i,
+            s=s_i,
+            inexact=expected["inexact_o"],
+            overflow=expected["ovf_o"],
+            underflow=expected["uf_o"],
+            ovf_i=ovf_i,
+        )
     )
 
     if label:
@@ -240,13 +298,46 @@ async def drive_and_check(
 @cocotb.test()
 async def test_rne(dut):
     await drive_and_check(
-        dut, 0x800000, 0xFE, 0, 1, 0, 0, RoundMode.RNE, 0, 0, 0, "round to infinity"
+        dut,
+        0x800000,
+        0xFE,
+        0,
+        1,
+        0,
+        0,
+        RoundMode.RNE.value,
+        0,
+        0,
+        0,
+        "round to infinity",
     )
     await drive_and_check(
-        dut, 0x800000, 0xF0, 0, 1, 0, 0, RoundMode.RNE, 0, 0, 0, "tie with even lsb"
+        dut,
+        0x800000,
+        0xF0,
+        0,
+        1,
+        0,
+        0,
+        RoundMode.RNE.value,
+        0,
+        0,
+        0,
+        "tie with even lsb",
     )
     await drive_and_check(
-        dut, 0x800001, 0xF0, 0, 1, 0, 0, RoundMode.RNE, 0, 0, 0, "tie with odd lsb"
+        dut,
+        0x800001,
+        0xF0,
+        0,
+        1,
+        0,
+        0,
+        RoundMode.RNE.value,
+        0,
+        0,
+        0,
+        "tie with odd lsb",
     )
     # test grs combinations
     for g in [0, 1]:
@@ -260,21 +351,43 @@ async def test_rne(dut):
                     g,
                     r,
                     s,
-                    RoundMode.RNE,
+                    RoundMode.RNE.value,
                     0,
                     0,
                     0,
-                    "RNE with g:{g} r:{r} s:{s}",
+                    f"RNE with g:{g} r:{r} s:{s}",
                 )
 
 
 @cocotb.test()
 async def test_rtz(dut):
     await drive_and_check(
-        dut, 0x800000, 0xF0, 1, 0, 0, 0, RoundMode.RTZ, 0, 0, 0, "round negative number"
+        dut,
+        0x800000,
+        0xF0,
+        1,
+        0,
+        0,
+        0,
+        RoundMode.RTZ.value,
+        0,
+        0,
+        0,
+        "round negative number",
     )
     await drive_and_check(
-        dut, 0x800000, 0xF0, 0, 0, 0, 0, RoundMode.RTZ, 0, 0, 0, "round positive number"
+        dut,
+        0x800000,
+        0xF0,
+        0,
+        0,
+        0,
+        0,
+        RoundMode.RTZ.value,
+        0,
+        0,
+        0,
+        "round positive number",
     )
 
     # test grs combinations
@@ -289,18 +402,18 @@ async def test_rtz(dut):
                     g,
                     r,
                     s,
-                    RoundMode.RTZ,
+                    RoundMode.RTZ.value,
                     0,
                     0,
                     0,
-                    "RTZ with g:{g} r:{r} s:{s}",
+                    f"RTZ with g:{g} r:{r} s:{s}",
                 )
 
 
 @cocotb.test()
 async def test_rdn(dut):
     await drive_and_check(
-        dut, 0xFFFFFF, 0xFE, 1, 0, 0, 0, RoundMode.RDN, 0, 0, 0, "round to -infty"
+        dut, 0xFFFFFF, 0xFE, 1, 0, 0, 0, RoundMode.RDN.value, 0, 0, 0, "round to -infty"
     )
     await drive_and_check(
         dut,
@@ -310,7 +423,7 @@ async def test_rdn(dut):
         0,
         0,
         0,
-        RoundMode.RDN,
+        RoundMode.RDN.value,
         0,
         0,
         0,
@@ -329,18 +442,18 @@ async def test_rdn(dut):
                     g,
                     r,
                     s,
-                    RoundMode.RDN,
+                    RoundMode.RDN.value,
                     0,
                     0,
                     0,
-                    "RDN with g:{g} r:{r} s:{s}",
+                    f"RDN with g:{g} r:{r} s:{s}",
                 )
 
 
 @cocotb.test()
 async def test_rup(dut):
     await drive_and_check(
-        dut, 0xFFFFFF, 0xFE, 0, 0, 0, 0, RoundMode.RUP, 0, 0, 0, "round to +infty"
+        dut, 0xFFFFFF, 0xFE, 0, 0, 0, 0, RoundMode.RUP.value, 0, 0, 0, "round to +infty"
     )
     await drive_and_check(
         dut,
@@ -350,7 +463,7 @@ async def test_rup(dut):
         0,
         0,
         0,
-        RoundMode.RUP,
+        RoundMode.RUP.value,
         0,
         0,
         0,
@@ -369,11 +482,11 @@ async def test_rup(dut):
                     g,
                     r,
                     s,
-                    RoundMode.RUP,
+                    RoundMode.RUP.value,
                     0,
                     0,
                     0,
-                    "RUP with g:{g} r:{r} s:{s}",
+                    f"RUP with g:{g} r:{r} s:{s}",
                 )
 
 
@@ -381,31 +494,44 @@ async def test_rup(dut):
 async def test_zero_passthrough(dut):
     """zero_i forces zero output, sign preserved, no flags."""
     await drive_and_check(
-        dut, 0x000000, 0, 0, 0, 0, 0, RoundMode.RNE, zero=1, label="+0"
+        dut, 0x000000, 0, 0, 0, 0, 0, RoundMode.RNE.value, zero_i=1, label="+0"
     )
     await drive_and_check(
-        dut, 0x000000, 0, 1, 0, 0, 0, RoundMode.RNE, zero=1, label="-0"
+        dut, 0x000000, 0, 1, 0, 0, 0, RoundMode.RNE.value, zero_i=1, label="-0"
     )
     await drive_and_check(
-        dut, 0x123456, 99, 0, 1, 1, 1, RoundMode.RDN, zero=1, label="zero dominates GRS"
+        dut,
+        0x123456,
+        99,
+        0,
+        1,
+        1,
+        1,
+        RoundMode.RDN.value,
+        zero_i=1,
+        label="zero dominates GRS",
     )
 
 
 @cocotb.test()
 async def test_underflow_flag(dut):
-    await drive_and_check(dut, 0x000000, 0x00, 0, 0, 0, 0, RoundMode.RNE, 1, label="+0")
-    await drive_and_check(dut, 0x000000, 0x00, 1, 0, 0, 0, RoundMode.RNE, 1, label="-0")
+    await drive_and_check(
+        dut, 0x000000, 0x00, 0, 0, 0, 0, RoundMode.RNE.value, 1, label="+0"
+    )
+    await drive_and_check(
+        dut, 0x000000, 0x00, 1, 0, 0, 0, RoundMode.RNE.value, 1, label="-0"
+    )
 
 
 @cocotb.test()
 async def test_overflow_flag(dut):
     """This test is only for overflows comming from the normalizer module."""
     for mode in [
-        RoundMode.RNE,
-        RoundMode.RTZ,
-        RoundMode.RDN,
-        RoundMode.RUP,
-        RoundMode.RMM,
+        RoundMode.RNE.value,
+        RoundMode.RTZ.value,
+        RoundMode.RDN.value,
+        RoundMode.RUP.value,
+        RoundMode.RMM.value,
     ]:
         for sign in [0, 1]:
             await drive_and_check(
@@ -417,6 +543,113 @@ async def test_overflow_flag(dut):
                 0,
                 0,
                 mode,
-                ovf=1,
+                ovf_i=1,
                 label=f"incoming overflow: MODE: {mode} sign: {sign}",
             )
+
+
+# ---------------
+# RANDOMIZED TEST
+# ---------------
+@cocotb.test()
+async def random_test(dut):
+    rng = random.Random(0xCACABACA)
+    num_tests = 8000
+    for _ in range(num_tests):
+        mant_rnd = rng.randint(0, MANT_MASK)
+
+        # define probabilities for different exponent values
+        exp_case = rng.random()
+        if exp_case < 0.2:
+            exp_rnd = 0
+        elif exp_case < 0.4:
+            exp_rnd = rng.randint(0xFA, 0xFF)
+        else:
+            exp_rnd = rng.randint(0, EXP_MASK)
+
+        sign_rnd = rng.randint(0, 1)
+        g_rnd = rng.randint(0, 1)
+        r_rnd = rng.randint(0, 1)
+        s_rnd = rng.randint(0, 1)
+        mode_rnd = rng.randint(0, len(RoundMode))
+
+        # ponderated probability of flags
+        ovf_rnd = 1 if rng.random() <= 0.2 else 0
+        uf_rnd = 1 if rng.random() <= 0.1 else 0
+        zero_rnd = 1 if rng.random() <= 0.05 else 0
+
+        # if overflow input is 1, that means the exponent has the reserved maximum value
+        if ovf_rnd == 1:
+            exp_rnd = EXP_MASK
+
+        await drive_and_check(
+            dut,
+            mant_rnd,
+            exp_rnd,
+            sign_rnd,
+            g_rnd,
+            r_rnd,
+            s_rnd,
+            mode_rnd,
+            ovf_rnd,
+            uf_rnd,
+            zero_rnd,
+        )
+
+    report_coverage(dut)
+
+
+# ---------
+# DEBUGGING
+# ---------
+def report_coverage(dut):
+    """Print every coverpoint with per-bin hit counts
+
+    Set COVERAGE_VERBOSE=1 to also list the hit counts of bins that were covered.
+    """
+
+    verbose = os.environ.get("COVERAGE_VERBOSE", "0") == "1"
+
+    # make a list of the different cover points
+    names = [
+        "top.case",
+        "top.sign",
+        "top.underflow",
+        "top.overflow",
+        "top.grs",
+        "top.exp_region",
+        "top.case_x_sign",
+    ]
+
+    dut._log.info("---------- FUNCTIONAL COVERAGE ----------")
+    all_missing = []
+    # get the bins that have not been tested
+    for name in names:
+        cp = coverage_db[name]
+        detail = cp.detailed_coverage
+        missing = [b for b, hits in detail.items() if hits == 0]
+        flag = "" if not missing else f"   <-- {len(missing)} bins MISSING"
+        dut._log.info(
+            f"  {name:<22s} {cp.cover_percentage:6.2f}%  "
+            f"({cp.coverage}/{cp.size} bins){flag}"
+        )
+        for b in missing:
+            dut._log.info(f"       MISSING bin: {b!r}")
+            all_missing.append(f"{name}={b!r}")
+        if verbose:
+            for b, hits in detail.items():
+                if hits:  # print non-missing too
+                    dut._log.info(f"       hit {hits:6d}x : {b!r}")
+
+    # report the total coverage of the testbench
+    total = coverage_db["top"].cover_percentage
+    dut._log.info(f"  {'TOTAL':<22s} {total:6.2f}%")
+    dut._log.info("--------------------------------")
+
+    coverage_db.export_to_xml(filename="coverage_functional.xml")
+
+    # notify missing bins if 100% was not covered
+    assert total == 100.0, (
+        f"Functional coverage incomplete: {total:.2f}%"
+        f"Uncovered bins ({len(all_missing)}): " + ", ".join(all_missing)
+    )
