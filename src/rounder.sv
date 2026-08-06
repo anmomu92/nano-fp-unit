@@ -140,8 +140,8 @@ module rounder #(
     case (round_mode_i)
       RNE: round_up = guard_i & (round_i | sticky_i | mant_i[0]);
       RTZ: round_up = 0;
-      RDN: round_up = sign_i & (guard_i | rount_i | sticky_i);
-      RUP: round_up = !sign_i & (guard_i | rount_i | sticky_i);
+      RDN: round_up = sign_i & (guard_i | round_i | sticky_i);
+      RUP: round_up = !sign_i & (guard_i | round_i | sticky_i);
       RMM: round_up = guard_i;
       default: round_up = guard_i & (guard_i | sticky_i | mant_i[0]);
     endcase
