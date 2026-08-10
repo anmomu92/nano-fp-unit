@@ -31,6 +31,9 @@ FRAC_MASK = (1 << FRAC_WIDTH) - 1
 # values
 EXP_MAX_NORM = EXP_MASK - 1
 
+# debugging
+DEBUG_INTERNALS = os.environ.get("DEBUG_INTERNALS", "0") == "1"
+
 
 # RISC-V frm
 class RoundMode(Enum):
@@ -49,15 +52,15 @@ class RoundMode(Enum):
 # Description - calculates the bit that will decide in which direction to round up the fraction
 def rounding_decision(mode, sign, g, r, s, lsb):
     match mode:
-        case RoundMode.RNE:
+        case RoundMode.RNE.value:
             round_up = g & (r | s | lsb)
-        case RoundMode.RTZ:
+        case RoundMode.RTZ.value:
             round_up = 0
-        case RoundMode.RDN:
+        case RoundMode.RDN.value:
             round_up = sign & (g | r | s)
-        case RoundMode.RUP:
-            round_up = ~sign & (g | r | s)
-        case RoundMode.RMM:
+        case RoundMode.RUP.value:
+            round_up = (1 - sign) & (g | r | s)
+        case RoundMode.RMM.value:
             round_up = g
         case _:
             round_up = g & (r | s | lsb)
@@ -90,46 +93,46 @@ def golden_reference(
 
     exp_r = (exp_frac_r >> FRAC_WIDTH) & EXP_MASK
     exp_f = 0
-    frac_r = exp_frac_r & FRAC_WIDTH
+    frac_r = exp_frac_r & FRAC_MASK
     frac_f = 0
 
     inexact = (g_i | r_i | s_i) & 1
     ovf_raw = ovf_i | (exp_r == EXP_MASK)
 
-    # adjust exponent and fraction after overflow in different rounding modes
-    if ovf_raw:
-        match rm_i:
-            case RoundMode.RTZ:
-                exp_f = EXP_MAX_NORM
-                frac_f = FRAC_MASK
-            case RoundMode.RDN:
-                if sign_i:  # if negative, -infinity
-                    exp_f = EXP_MASK
-                    frac_f = 0
-                else:
-                    exp_f = EXP_MAX_NORM
-                    frac_f = FRAC_MASK
-            case RoundMode.RUP:
-                if not sign_i:  # if positive, +infinity
-                    exp_f = EXP_MASK
-                    frac_f = 0
-                else:
-                    exp_f = EXP_MAX_NORM
-                    frac_f = FRAC_MASK
-            case _:
-                exp_f = exp_r
-                frac_f = frac_r
-
+    # adjust exponent and fraction after incoming flags
     if z_i:
         exp_f, frac_f, inexact = 0, 0, 0
     else:
-        exp_f, frac_f = exp_r, frac_r
+        if ovf_raw:
+            match rm_i:
+                case RoundMode.RTZ.value:
+                    exp_f = EXP_MAX_NORM
+                    frac_f = FRAC_MASK
+                case RoundMode.RDN.value:
+                    if sign_i:  # if negative, -infinity
+                        exp_f = EXP_MASK
+                        frac_f = 0
+                    else:
+                        exp_f = EXP_MAX_NORM
+                        frac_f = FRAC_MASK
+                case RoundMode.RUP.value:
+                    if not sign_i:  # if positive, +infinity
+                        exp_f = EXP_MASK
+                        frac_f = 0
+                    else:
+                        exp_f = EXP_MAX_NORM
+                        frac_f = FRAC_MASK
+                case _:
+                    exp_f = exp_r
+                    frac_f = frac_r
+        else:
+            exp_f, frac_f = exp_r, frac_r
 
     ovf_f = ovf_raw and not z_i
     uf_f = 1 if (exp_f == 0 and not z_i and inexact) else 0
     res_f = (sign_i << (RES_WIDTH - 1)) | (exp_f << FRAC_WIDTH) | frac_f
 
-    return dict(
+    out: dict[str, Any] = dict(
         sign_o=sign_i,
         exp_o=exp_f,
         frac_o=frac_f,
@@ -139,6 +142,20 @@ def golden_reference(
         inexact_o=inexact,
         round_up_o=round_up,
     )
+
+    out["_internals"] = dict(
+        frac=frac,
+        round_up=round_up,
+        ovf_raw=ovf_raw,
+        exp_frac=exp_frac,
+        exp_frac_r=exp_frac_r,
+        exp_r=exp_r,
+        exp_f=exp_f,
+        frac_r=frac_r,
+        frac_f=frac_f,
+    )
+
+    return out
 
 
 # coverage functions
@@ -175,7 +192,7 @@ def classify(mant, exp, sign, g, r, s, mode, zero, gold, ovf_i=0):
     bins=[
         "no_round",
         "round_up",
-        "mant_overflow",
+        "mantissa_overflow",
         "subnormal_promote",
         "overflow",
         "zero",
@@ -194,7 +211,7 @@ def classify(mant, exp, sign, g, r, s, mode, zero, gold, ovf_i=0):
 @CoverCross("top.overflow_x_mode", items=["top.overflow", "top.mode"])
 @CoverCross("top.mode_x_sign", items=["top.mode", "top.sign"])
 @CoverCross("top.ovfin_x_mode", items=["top.overflow_in", "top.mode"])
-@CoverCross("top.ovfin_x_sing", items=["top.overflow_in", "top.sign"])
+@CoverCross("top.ovfin_x_sign", items=["top.overflow_in", "top.sign"])
 def sample(t):
     pass
 
@@ -252,8 +269,27 @@ async def drive_and_check(
         inexact_o=int(dut.inexact_o.value),
     )
 
+    if DEBUG_INTERNALS:
+        gi = expected["_internals"]
+
+        dut._log.info(f"\n\n")
+        dut._log.info("--- GOLDEN MODEL INTERNAL SIGNALS")
+        dut._log.info(f"\n")
+        dut._log.info(f"round up = {gi['round_up']}")
+        dut._log.info(f"overflow raw = {gi['ovf_raw']}")
+        dut._log.info(
+            f"exp_frac = 0x{gi['exp_frac']:08x} exp_frac_r = 0x{gi['exp_frac_r']:08x}"
+        )
+        dut._log.info(f"exp_r = 0x{gi['exp_r']:02x} exp_f = 0x{gi['exp_f']:02x}")
+        dut._log.info(
+            f"frac = 0x{gi['frac']:06x} frac_r = 0x{gi['frac_r']:06x} frac_f = 0x{gi['frac_f']:06x}"
+        )
+        dut._log.info(f"\n\n")
+
     for k in ("sign_o", "exp_o", "frac_o", "res_o", "ovf_o", "uf_o", "inexact_o"):
-        if k == "frac_o":
+        if k == "_internals":
+            continue
+        elif k == "frac_o":
             assert (
                 got[k] == expected[k]
             ), f"{k}: got 0x{got[k]:06x} expected 0x{expected[k]:06x}\n  [{context}]"
@@ -514,16 +550,6 @@ async def test_zero_passthrough(dut):
 
 
 @cocotb.test()
-async def test_underflow_flag(dut):
-    await drive_and_check(
-        dut, 0x000000, 0x00, 0, 0, 0, 0, RoundMode.RNE.value, 1, label="+0"
-    )
-    await drive_and_check(
-        dut, 0x000000, 0x00, 1, 0, 0, 0, RoundMode.RNE.value, 1, label="-0"
-    )
-
-
-@cocotb.test()
 async def test_overflow_flag(dut):
     """This test is only for overflows comming from the normalizer module."""
     for mode in [
@@ -554,9 +580,15 @@ async def test_overflow_flag(dut):
 @cocotb.test()
 async def random_test(dut):
     rng = random.Random(0xCACABACA)
-    num_tests = 8000
+    num_tests = 80000
     for _ in range(num_tests):
-        mant_rnd = rng.randint(0, MANT_MASK)
+        mant_case = rng.random()
+        if mant_case < 0.2:
+            mant_rnd = 0
+        elif mant_case < 0.5:
+            mant_rnd = rng.randint(0x000001, MANT_MASK)
+        else:
+            mant_rnd = int(0xFFFFFF)
 
         # define probabilities for different exponent values
         exp_case = rng.random()
@@ -571,7 +603,7 @@ async def random_test(dut):
         g_rnd = rng.randint(0, 1)
         r_rnd = rng.randint(0, 1)
         s_rnd = rng.randint(0, 1)
-        mode_rnd = rng.randint(0, len(RoundMode))
+        mode_rnd = rng.randint(0, len(RoundMode) - 1)
 
         # ponderated probability of flags
         ovf_rnd = 1 if rng.random() <= 0.2 else 0
@@ -612,13 +644,18 @@ def report_coverage(dut):
 
     # make a list of the different cover points
     names = [
-        "top.case",
+        "top.mode",
+        "top.scenario",
         "top.sign",
-        "top.underflow",
-        "top.overflow",
         "top.grs",
-        "top.exp_region",
-        "top.case_x_sign",
+        "top.inexact",
+        "top.overflow",
+        "top.underflow",
+        "top.overflow_in",
+        "top.overflow_x_mode",
+        "top.mode_x_sign",
+        "top.ovfin_x_mode",
+        "top.ovfin_x_sign",
     ]
 
     dut._log.info("---------- FUNCTIONAL COVERAGE ----------")
