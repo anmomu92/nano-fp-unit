@@ -48,16 +48,18 @@ module rounder #(
     // status flags
     input logic overflow_i,
     input logic underflow_i,
+    input logic zero_i,
 
     // round mode
-    input logic round_mode_i,
+    input logic [2:0] round_mode_i,
+
     // -------
     // OUTPUTS
     // -------
     // rounded number
     output logic sign_o,
     output logic [EXP_WIDTH-1:0] exp_o,
-    output logic [MANT_WIDTH-1:0] frac_o,
+    output logic [MANT_WIDTH-2:0] frac_o,
     output logic [EXP_WIDTH+MANT_WIDTH-1:0] result_o,
 
     // status flags
@@ -138,8 +140,8 @@ module rounder #(
     case (round_mode_i)
       RNE: round_up = guard_i & (round_i | sticky_i | mant_i[0]);
       RTZ: round_up = 0;
-      RDN: round_up = sign_i & (guard_i | rount_i | sticky_i);
-      RUP: round_up = !sign_i & (guard_i | rount_i | sticky_i);
+      RDN: round_up = sign_i & (guard_i | round_i | sticky_i);
+      RUP: round_up = !sign_i & (guard_i | round_i | sticky_i);
       RMM: round_up = guard_i;
       default: round_up = guard_i & (guard_i | sticky_i | mant_i[0]);
     endcase
@@ -157,7 +159,7 @@ module rounder #(
         end
         RDN: begin
           exp_ovf  = sign_i ? EXP_ALL1 : EXP_MAX_NORM;
-          frac_ovf = sign_i ? '0 : EXP_MAX_NORM;
+          frac_ovf = sign_i ? '0 : FRAC_ALL1;
         end
         RUP: begin
           exp_ovf  = sign_i ? EXP_MAX_NORM : EXP_ALL1;
@@ -165,7 +167,7 @@ module rounder #(
         end
         default: begin
           exp_ovf  = EXP_ALL1;
-          frac_ovf = '0;
+          frac_ovf = frac_r;
         end
       endcase
     end else begin
