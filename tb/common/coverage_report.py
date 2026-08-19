@@ -3,7 +3,7 @@ import os
 from cocotb_coverage.coverage import coverage_db
 
 
-def report_coverage(dut):
+def report_coverage(dut, coverage):
     """
     Print every coverpoint with per-bin hit counts
 
@@ -11,9 +11,6 @@ def report_coverage(dut):
     """
 
     verbose = os.environ.get("COVERAGE_VERBOSE", "0") == "1"
-
-    # TODO: make a global list with the coverpoints
-    coverage = ["top.format"]
 
     dut._log.info("\n---------- FUNCTIONAL COVERAGE ----------")
     all_missing = []
@@ -31,7 +28,7 @@ def report_coverage(dut):
 
         for b in missing_bins:
             dut._log.info(f"     MISSING bin: {b!r}")
-            all_missing.append(f"{name}={b!r}")
+            all_missing.append(f"\n\t{name}={b!r}")
         if verbose:
             for b, hits in cp_details.items():
                 if hits:
@@ -48,6 +45,6 @@ def report_coverage(dut):
 
     # notify if 100% was not reached
     assert total == 100.0, (
-        f"Functional coverage incomplete: {total:.2f}%"
-        f"Uncovered bins ({len(all_missing)}): " + ", ".join(all_missing)
+        f"Functional coverage incomplete: {total:.2f}%\n"
+        f"Uncovered bins ({len(all_missing)}): " + "".join(all_missing)
     )
