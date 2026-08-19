@@ -14,9 +14,13 @@ from cocotb.triggers import Timer
 from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
 from common.coverage_report import report_coverage
 
+# -----------------------
+# VARIABLES AND CONSTANTS
+# -----------------------
+# constants
 SETTLE = Timer(1, unit="ns")
-
 MAX_SHIFT = 27
+COVERAGE = ["top.exp_a", "top.exp_b", "top.exp_a_x_exp_b"]
 
 
 # -------
@@ -89,7 +93,7 @@ async def check(dut, inputs, expected=None, label=""):
     assert got == expected, f"{label}: got {got} expected {expected} [{inputs}]"
 
     # coverage
-    # sample(inputs)
+    sample(inputs)
 
     if label:
         dut._log.info(f"PASS {label}")
@@ -98,7 +102,45 @@ async def check(dut, inputs, expected=None, label=""):
 # ------------
 # COVER POINTS
 # ------------
-# @CoverPoint("top")
+# bins
+EXP_BINS = [
+    "ZERO",
+    "MIN_NORM",
+    "LOW",
+    "MID_LOW",
+    "BIAS",
+    "MID_HIGH",
+    "HIGH",
+    "MAX_NORM",
+    "ONES",
+]
+
+
+def classify(exp: int) -> str:
+    if exp == 0:
+        return "ZERO"
+    if exp == 1:
+        return "MIN_NORM"
+    if exp <= 63:
+        return "LOW"
+    if exp <= 126:
+        return "MID_LOW"
+    if exp == 127:
+        return "BIAS"
+    if exp <= 190:
+        return "MID_HIGH"
+    if exp <= 253:
+        return "HIGH"
+    if exp == 254:
+        return "MAX_NORM"
+    return "ONES"
+
+
+@CoverPoint("top.exp_a", xf=lambda t: classify(t.exp_a_i), bins=EXP_BINS)
+@CoverPoint("top.exp_b", xf=lambda t: classify(t.exp_b_i), bins=EXP_BINS)
+@CoverCross("top.exp_a_x_exp_b", items=["top.exp_a", "top.exp_b"])
+def sample(t):
+    pass
 
 
 # --------------
@@ -139,7 +181,6 @@ async def test_directed(dut):
 
 @cocotb.test()
 async def test_exhaustive_exponent_space(dut):
-    mismatches = 0
     for exp_a in range(256):
         for exp_b in range(256):
             inputs = ExpDiffInputs(exp_a_i=exp_a, exp_b_i=exp_b)
@@ -148,3 +189,5 @@ async def test_exhaustive_exponent_space(dut):
     dut._log.info(
         "PASS exhaustive sweep: all 65536 (exp_a, exp_b) pairs match the golden model"
     )
+
+    report_coverage(dut, COVERAGE)

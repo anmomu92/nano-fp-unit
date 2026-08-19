@@ -7,6 +7,7 @@
 # 	make clean
 
 SIM ?= icarus
+COVERAGE_VERBOSE ?= 0
 TOPLEVEL_LANG ?= verilog
 
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
