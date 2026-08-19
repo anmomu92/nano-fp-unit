@@ -7,6 +7,7 @@
 # 	make clean
 
 SIM ?= icarus
+COVERAGE_VERBOSE ?= 0
 TOPLEVEL_LANG ?= verilog
 
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
@@ -14,6 +15,8 @@ PROJECT_ROOT := $(abspath $(THIS_DIR)/../..)
 SRC_DIR := $(PROJECT_ROOT)/src
 
 VERILOG_SOURCES = $(SRC_DIR)/mant_shift.sv
+
+export PYTHONPATH := $(THIS_DIR)/..:$(PYTHONPATH)
 
 COCOTB_TOPLEVEL = mant_shift
 COCOTB_TEST_MODULES = test_mant_shift

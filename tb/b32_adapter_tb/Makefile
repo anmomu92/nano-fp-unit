@@ -21,6 +21,8 @@ THIS_DIR     := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 PROJECT_ROOT := $(abspath $(THIS_DIR)/../..)
 SRC_DIR      := $(PROJECT_ROOT)/src
 
+export PYTHONPATH := $(THIS_DIR)/..:$(PYTHONPATH)
+
 VERILOG_SOURCES = $(SRC_DIR)/b32_adapter.sv
 
 # Name of the top-level module to instantiate, and the Python file

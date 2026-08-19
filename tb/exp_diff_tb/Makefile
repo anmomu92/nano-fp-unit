@@ -7,11 +7,14 @@
 # 	make clean
 
 SIM ?= icarus
+COVERAGE_VERBOSE ?= 0
 TOPLEVEL_LANG ?= verilog
 
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 PROJECT_ROOT := $(abspath $(THIS_DIR)/../..)
 SRC_DIR := $(PROJECT_ROOT)/src
+
+export PYTHONPATH := $(THIS_DIR)/..:$(PYTHONPATH)
 
 VERILOG_SOURCES := $(SRC_DIR)/exp_diff.sv
 

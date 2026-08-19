@@ -35,6 +35,8 @@ module exp_diff #(
     output logic [EXP_WIDTH-1:0] shift_o
 );
 
+  localparam MAX_SHIFT = 27;
+
   logic [EXP_WIDTH-1:0] diff;
 
   always_comb begin : OUTPUT_LOGIC
@@ -42,11 +44,14 @@ module exp_diff #(
 
     if (sel_o) begin
       // exponent A is bigger, shift exponent B
-      shift_o = exp_a_i - exp_b_i;
+      diff = exp_a_i - exp_b_i;
     end else begin
       // exponent B is bigger, shift exponent A
-      shift_o = exp_b_i - exp_a_i;
+      diff = exp_b_i - exp_a_i;
     end
+
+    if (diff > MAX_SHIFT) shift_o = MAX_SHIFT;
+    else shift_o = diff;
   end
 
 endmodule
