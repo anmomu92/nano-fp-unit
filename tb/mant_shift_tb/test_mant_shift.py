@@ -84,6 +84,10 @@ class MantShiftInputs:
     mant_i: int
     shift_i: int
 
+    def __str__(self) -> str:
+        return f"mant_i=0x{self.mant_i:06x} "
+        f"shift_i={self.shift_i} "
+
 
 @dataclass
 class MantShiftOutputs:
@@ -91,6 +95,12 @@ class MantShiftOutputs:
     guard_o: int
     round_o: int
     sticky_o: int
+
+    def __str__(self) -> str:
+        return f"mant_o=0x{self.mant_o:06x} "
+        f"guard_o={self.guard_o} "
+        f"round_o={self.round_o} "
+        f"sticky_o={self.sticky_o} "
 
 
 # ---------
