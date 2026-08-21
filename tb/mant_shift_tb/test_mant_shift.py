@@ -27,6 +27,7 @@ from common.coverage_report import report_coverage
 SETTLE = Timer(1, unit="ns")
 MANT_WIDTH = 24
 MAX_SHIFT = 27
+
 DIRECTED_CASES = [
     # (name, mant, shift, expected_out, G, R, S)
     ("zero shift", 0x800000, 0, 0x800000, 0, 0, 0),
@@ -64,6 +65,7 @@ CORNER_CASES = [
     ("max shift", 0x800000, 31, 0x000000, 0, 0, 1),
     ("max shift, all ones", 0xFFFFFF, 31, 0x000000, 0, 0, 1),
 ]
+
 COVERAGE = [
     "top.mant",
     "top.shift",
@@ -162,47 +164,108 @@ async def check(dut, inputs, expected=None, label=""):
 # --------
 MANT_BINS = [
     "ZERO",
-    "B01",
-    "B10",
-    "B11",
-    "B100",
-    "B00",
-    "ALL_ONES",
+    "CTZ_0",
+    "CTZ_1",
+    "CTZ_2",
+    "CTZ_3_11",
+    "CTZ_12_22",
+    "CTZ_23",
 ]
 
 SHIFT_BINS = [
-    "LOW (0-3)",
-    "MID (4-23)",
-    "HIGH (24-27)",
-    "SATURATION",
+    "SH_0",
+    "SH_1",
+    "SH_2",
+    "SH_3",
+    "MID (4-22)",
+    "SH_23",
+    "SH_24",
+    "SH_25",
+    "SATURATION (26+)",
 ]
+
+GRS_BINS = [
+    "G0R0S0",
+    "G0R0S1",
+    "G0R1S0",
+    "G0R1S1",
+    "G1R0S0",
+    "G1R0S1",
+    "G1R1S0",
+    "G1R1S1",
+]
+
+# ------------
+# ILLEGAL BINS
+# ------------
+# the following bins are illegal because contain combinations that are not theoretically (nor practically) possible.
+
+
+def _grs(label):  # "G1R0S1" -> (1, 0, 1)
+    """
+    Return a tuple of the GRS bits.
+    """
+    return int(label[1]), int(label[3]), int(label[5])
+
+
+# this are the illegal bins for the grs_x_shift CoverCross
+ILLEGAL_GRS_SHIFT = []
+for label in GRS_BINS:
+    g, r, s = _grs(label)
+    if (g, r, s) != (0, 0, 0):
+        ILLEGAL_GRS_SHIFT.append((label, "SH_0"))
+    if r or s:
+        ILLEGAL_GRS_SHIFT.append((label, "SH_1"))
+    if s:
+        ILLEGAL_GRS_SHIFT.append((label, "SH_2"))
+    if g:
+        ILLEGAL_GRS_SHIFT.append((label, "SH_25"))
+    if g or r:
+        ILLEGAL_GRS_SHIFT.append((label, "SATURATION (26+)"))
+
+# this are the illegal bins for the guard_x_shift CoverCross
+ILLEGAL_GUARD_SHIFT = [(1, "SH_0"), (1, "SH_25"), (1, "SATURATION (26+)")]
+# this are the illegal bins for the round_x_shift CoverCross
+ILLEGAL_ROUND_SHIFT = [(1, "SH_0"), (1, "SH_1"), (1, "SATURATION (26+)")]
+# this are the illegal bins for the sticky_x_shift CoverCross
+ILLEGAL_STICKY_SHIFT = [(1, "SH_0"), (1, "SH_1"), (1, "SH_2")]
 
 
 def classify_mant(mant: int) -> str:
+    """
+    Categorize the mantissa.
+    CTZ_<amount-of-zero-bits> stands for Count of Trailing Zeros.
+        - CTZ_1 means that there is one 0 below the first bit set.
+    """
     if mant == 0x000000:
         return "ZERO"
-    if mant == 0xFFFFFF:
-        return "ALL_ONES"
-    lsb = mant & 0x4
-    if lsb == 0x1:
-        return "GUARD"
-    if lsb == 0x2:
-        return "ROUND"
-    if lsb == 0x3:
-        return "STICKY"
-    if lsb == 0x4:
-        return "B100"
-    return "B00"
+    k = (mant & -mant).bit_length() - 1  # this finds the lowest bit set in the mantissa
+    if k <= 2:
+        return f"CTZ_{k}"
+    if k <= 11:
+        return "CTZ_3_11"
+    if k <= 22:
+        return "CTZ_12_22"
+    return "CTZ_23"
 
 
 def classify_shift(shift: int) -> str:
-    if shift >= 0 and shift <= 3:
-        return "LOW (0-3)"
-    if shift >= 4 and shift <= 23:
-        return "MID (4-23)"
-    if shift >= 24 and shift <= 27:
-        return "HIGH (24-27)"
-    return "SATURATION"
+    """
+    Categorize the shift values.
+    SH_<amount-of-shift>
+        - SH_2 means that the shift is 2.
+    """
+    if shift <= 3:
+        return f"SH_{shift}"
+    if shift <= 22:
+        return "MID (4-22)"
+    if shift <= 25:
+        return f"SH_{shift}"  # SH_23, SH_24, SH_25
+    return "SATURATION (26+)"
+
+
+def classify_grs(g: int, r: int, s: int) -> str:
+    return f"G{g}R{r}S{s}"
 
 
 @CoverPoint("top.mant", xf=lambda t: classify_mant(t["i"].mant_i), bins=MANT_BINS)
@@ -210,7 +273,26 @@ def classify_shift(shift: int) -> str:
 @CoverPoint("top.guard", xf=lambda t: t["o"].guard_o, bins=[0, 1])
 @CoverPoint("top.round", xf=lambda t: t["o"].round_o, bins=[0, 1])
 @CoverPoint("top.sticky", xf=lambda t: t["o"].sticky_o, bins=[0, 1])
+@CoverPoint(
+    "top.grs",
+    xf=lambda t: classify_grs(t["o"].guard_o, t["o"].round_o, t["o"].sticky_o),
+    bins=GRS_BINS,
+)
 @CoverCross("top.mant_x_shift", items=["top.mant", "top.shift"])
+@CoverCross(
+    "top.guard_x_shift", items=["top.guard", "top.shift"], ign_bins=ILLEGAL_GUARD_SHIFT
+)
+@CoverCross(
+    "top.round_x_shift", items=["top.round", "top.shift"], ign_bins=ILLEGAL_ROUND_SHIFT
+)
+@CoverCross(
+    "top.sticky_x_shift",
+    items=["top.sticky", "top.shift"],
+    ign_bins=ILLEGAL_STICKY_SHIFT,
+)
+@CoverCross(
+    "top.grs_x_shift", items=["top.grs", "top.shift"], ign_bins=ILLEGAL_GRS_SHIFT
+)
 def sample(t):
     pass
 
@@ -260,19 +342,26 @@ async def test_all_shifts(dut):
 async def test_random(dut):
     rng = random.Random(0xC0C0BABE)
     MAX_VAL = (1 << MANT_WIDTH) - 1
-    NUM_TESTS = 10000
+    NUM_TESTS = 100000
     for _ in range(NUM_TESTS):
-        rmant = rng.random()
-        if rmant < 0.2:
-            mant = rng.choice([0x000000, 0x800000])
-        elif rmant < 0.4:
-            mant = rng.choice([0x000001, 0x800001])
-        elif rmant < 0.6:
-            mant = rng.randint(0, MAX_VAL)
+        k = random.choice(
+            [None, 0, 1, 2, random.randint(3, 11), random.randint(12, 22), 23]
+        )
+        if k is None:
+            mant = 0  # ZERO
         else:
-            mant = rng.randint(0, MAX_VAL)
-        shift = rng.randint(0, MAX_SHIFT)
+            high = random.getrandbits(
+                MANT_WIDTH - 1 - k
+            )  # free bits above the lowest 1
+            mant = (high << (k + 1)) | (1 << k)
+
+        # --- shift: choose a region, then a value inside it ---
+        shift = random.choice(
+            [0, 1, 2, 3, random.randint(4, 22), 23, 24, 25, random.randint(26, 31)]
+        )
+
         inputs = MantShiftInputs(mant_i=mant, shift_i=shift)
+
         await check(dut, inputs)
 
     dut._log.info(f"PASS random: {NUM_TESTS} tests match.")
