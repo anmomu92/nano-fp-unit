@@ -31,7 +31,7 @@ module exp_diff #(
 ) (
     input logic [EXP_WIDTH-1:0] exp_a_i,
     input logic [EXP_WIDTH-1:0] exp_b_i,
-    output logic sel_o,
+    output logic swap_o,
     output logic [EXP_WIDTH-1:0] shift_o
 );
 
@@ -40,14 +40,14 @@ module exp_diff #(
   logic [EXP_WIDTH-1:0] diff;
 
   always_comb begin : OUTPUT_LOGIC
-    sel_o = (exp_a_i >= exp_b_i) ? 1 : 0;
+    swap_o = (exp_a_i >= exp_b_i) ? 0 : 1;
 
-    if (sel_o) begin
+    if (swap_o) begin
       // exponent A is bigger, shift exponent B
-      diff = exp_a_i - exp_b_i;
+      diff = exp_b_i - exp_a_i;
     end else begin
       // exponent B is bigger, shift exponent A
-      diff = exp_b_i - exp_a_i;
+      diff = exp_a_i - exp_b_i;
     end
 
     if (diff > MAX_SHIFT) shift_o = MAX_SHIFT;
