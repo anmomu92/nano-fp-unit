@@ -36,7 +36,7 @@
  *   swap_i      - swap bit that indicates if the operands where switched by
  *   the exp_diff module
  *
- *   sign_o      - sign of the operation 
+ *   sign_o      - sign of the operation
  *   res_o       - result of the operation
  *   guard_o     - guard bit
  *   round_o     - round bit
@@ -80,11 +80,16 @@ module alu #(
     output logic carry_o
 );
 
-  // local parameters
+  // ----------------
+  // LOCAL PARAMETERS
+  // ----------------
   localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits
   localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width
 
-  // internal signals
+  // ----------------
+  // INTERNAL SIGNALS
+  // ----------------
+  logic eff_sign_b;
   logic magnitude_add;  // this signal indicates if the magnitudes have to be added, regardless of the operation type
   logic [FULL_WIDTH-1:0] op_a;
   logic [FULL_WIDTH-1:0] op_b;
@@ -94,7 +99,10 @@ module alu #(
   logic [FULL_WIDTH-1:0] sum;  // this signal carries the sum of the operation
   logic [FULL_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
 
-  // continuous assignments
+  // ----------------------
+  // CONTINUOUS ASSIGNMENTS
+  // ----------------------
+  assign eff_sign_b = ~op_code_i ^ sign_b_i;
   assign carry_raw = raw_sum[EXT_WIDTH];
   assign sum = raw_sum[EXT_WIDTH-1:0];
   assign magnitude_add = op_code_i ^ sign_a_i ^ sign_b_i;
@@ -105,13 +113,17 @@ module alu #(
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
 
+  // -------------------
+  // COMBINATIONAL LOGIC
+  // -------------------
+
   // The lower operand is always going to enter through the mant_b_i signal. So
   // if we want to substract the greater operand from it, we need to swap them
   // We do not need to swap the signs because they are not swapped previously
   always_comb begin : SWAP_OPERANDS
     if (swap_i) begin
       op_a = {1'b0, mant_b_i, guard_i, round_i, sticky_i};
-      op_b = {1'b0, mant_a_i, 3'b0};
+      op_b = {1'b0, mant_a_i, 3'b000};
     end else begin
       op_a = {1'b0, mant_a_i, 3'b000};
       op_b = {1'b0, mant_b_i, guard_i, round_i, sticky_i};
@@ -137,7 +149,7 @@ module alu #(
 
   always_comb begin : SIGN_VALUE
     if (~magnitude_add) begin
-      sign_o = (carry_raw) ? (sign_a_i ^ sign_b_i ^ carry_raw) : sign_a_i;  // if there was a carry, it means op_b > op_a
+      sign_o = (carry_raw) ? eff_sign_b : sign_a_i;  // if there was a carry, it means op_b > op_a
     end else sign_o = (op_code_i ^ sign_b_i) ? 1'b0 : 1'b1;
   end
 
