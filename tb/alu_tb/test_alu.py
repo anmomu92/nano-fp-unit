@@ -754,6 +754,44 @@ async def test_directed_cases(dut):
         await check(dut, inputs, expected=outputs, label=name)
 
 
+@cocotb.test()
+async def test_corner_cases(dut):
+    for (
+        name,
+        sa,
+        sb,
+        ma,
+        mb,
+        op,
+        g_i,
+        r_i,
+        s_i,
+        swap,
+        res,
+        g_o,
+        r_o,
+        s_o,
+        s,
+        c,
+    ) in CORNER_CASES:
+        inputs = AluInputs(
+            sign_a_i=sa,
+            sign_b_i=sb,
+            mant_a_i=ma,
+            mant_b_i=mb,
+            op_code_i=op,
+            guard_i=g_i,
+            round_i=r_i,
+            sticky_i=s_i,
+            swap_i=swap,
+        )
+        outputs = AluOutputs(
+            res_o=res, guard_o=g_o, round_o=r_o, sticky_o=s_o, sign_o=s, carry_o=c
+        )
+
+        await check(dut, inputs, expected=outputs, label=name)
+
+
 # -----------------
 # Random tests
 # -----------------
