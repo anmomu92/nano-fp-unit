@@ -620,7 +620,7 @@ def golden_reference(inputs):
     b_ext = (
         ((inputs.mant_b_i & MANT_MASK) << 3)
         | ((inputs.guard_i & 1) << 2)
-        | ((inputs.rount_i & 1) << 1)
+        | ((inputs.round_i & 1) << 1)
         | (inputs.sticky_i & 1)
     )
 
@@ -795,19 +795,34 @@ async def test_corner_cases(dut):
 # -----------------
 # Random tests
 # -----------------
-# @cocotb.test()
-# async def test_random(dut):
-#    rand = random.Random(0xC0C0BABE)
-#    MAX_VAL = (1 << MANT_WIDTH) - 1
-#    NUM_TESTS = 5000
-#    for i in range(NUM_TESTS):
-#        for op in [0, 1]:
-#            for sw in [0, 1]:
-#                sig_a = rand.randint(0, MAX_VAL)
-#                sig_b = rand.randint(0, MAX_VAL)
-#                g = rand.randint(0, 1)
-#                r = rand.randint(0, 1)
-#                s = rand.randint(0, 1)
-#                await drive_and_check(dut, sig_a, sig_b, op, g, r, s, sw)
-#
-#    dut._log.info(f"PASS random: {NUM_TESTS} tests match.")
+@cocotb.test()
+async def test_random(dut):
+    rand = random.Random(0xC0C0BABE)
+    MAX_VAL = (1 << MANT_WIDTH) - 1
+    NUM_TESTS = 10000
+    for i in range(NUM_TESTS):
+        for op in (0, 1):
+            for sign_a in (0, 1):
+                for sign_b in (0, 1):
+                    for swap in (0, 1):
+                        mant_a = rand.randint(0, MAX_VAL)
+                        mant_b = rand.randint(0, MAX_VAL)
+                        g = rand.randint(0, 1)
+                        r = rand.randint(0, 1)
+                        s = rand.randint(0, 1)
+
+                        inputs = AluInputs(
+                            sign_a_i=sign_a,
+                            sign_b_i=sign_b,
+                            mant_a_i=mant_a,
+                            mant_b_i=mant_b,
+                            op_code_i=op,
+                            guard_i=g,
+                            round_i=r,
+                            sticky_i=s,
+                            swap_i=swap,
+                        )
+
+                        await check(dut, inputs)
+
+    dut._log.info(f"PASS random: {NUM_TESTS} tests match.")
