@@ -5,7 +5,7 @@
  * Last Update : 2026-06-10
  *
  * Description :
- *   This module performs arithmetic-logic operations with the significands.
+ *   This module performs arithmetic-logic operations with the mantissas.
  *
  *   It receives two exponents and calculates their difference.
  *
@@ -24,13 +24,24 @@
      * magnitude_add = operation ^ sign_a ^ sign_b
  *
  * Parameters :
- *   - MANT_WIDTH - width of the significands.
+ *   - MANT_WIDTH - width of the mantissas.
  *
  * Interface :
- *   mant_a_i    - exponent of number A
- *   mant_b_i    - exponent of number B
- *   op_code_i  - operation code
- *   res_o      - result of the operation
+ *   mant_a_i    - exponent of unshifted mantissa from operand A
+ *   mant_b_i    - exponent of shifted mantissa from operand B
+ *   op_code_i   - operation code
+ *   guard_i     - guard bit
+ *   round_i     - round bit
+ *   sticky_i    - sticky bit
+ *   swap_i      - swap bit that indicates if the operands where switched by
+ *   the exp_diff module
+ *
+ *   sign_o      - sign of the operation 
+ *   res_o       - result of the operation
+ *   guard_o     - guard bit
+ *   round_o     - round bit
+ *   sticky_o    - sticky bit
+ *   carry_o     - carry bit
  *
  * Notes :
  *   - Not tested
@@ -47,8 +58,8 @@ module alu #(
     // inputs
     input logic sign_a_i,
     input logic sign_b_i,
-    input logic [MANT_WIDTH-1:0] mant_a_i,  // this is the unshifted significand
-    input logic [MANT_WIDTH-1:0] mant_b_i,  // this is the shifted significand
+    input logic [MANT_WIDTH-1:0] mant_a_i,  // this is the unshifted mantissa
+    input logic [MANT_WIDTH-1:0] mant_b_i,  // this is the shifted mantissa
 
     input logic op_code_i,
 
@@ -70,26 +81,26 @@ module alu #(
 );
 
   // local parameters
-  localparam int EXT_WIDTH = MANT_WIDTH + 3;  // significand width + grs bits
-  localparam int FULL_WIDTH = EXT_WIDTH + 1;  // carry bit + extended width
+  localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits
+  localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width
 
   // internal signals
   logic magnitude_add;  // this signal indicates if the magnitudes have to be added, regardless of the operation type
-  logic [EXT_WIDTH-1:0] op_a;
-  logic [EXT_WIDTH-1:0] op_b;
+  logic [FULL_WIDTH-1:0] op_a;
+  logic [FULL_WIDTH-1:0] op_b;
   logic [FULL_WIDTH-1:0] raw_sum;  // the result of the operation has to include the carry bit
 
   logic carry_raw;
-  logic [EXT_WIDTH-1:0] sum;  // this signal carries the sum of the operation
-  logic [EXT_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
+  logic [FULL_WIDTH-1:0] sum;  // this signal carries the sum of the operation
+  logic [FULL_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
 
   // continuous assignments
   assign carry_raw = raw_sum[EXT_WIDTH];
   assign sum = raw_sum[EXT_WIDTH-1:0];
-  assign magnitude_add = op_type_i ^ sign_a_i ^ sign_b_i;
+  assign magnitude_add = op_code_i ^ sign_a_i ^ sign_b_i;
 
   assign carry_o = magnitude_add && carry_raw;
-  assign res_o = abs_value[EXT_WIDTH-1:3];  // remove grs bits
+  assign res_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
   assign guard_o = abs_value[2];
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
@@ -99,35 +110,35 @@ module alu #(
   // We do not need to swap the signs because they are not swapped previously
   always_comb begin : SWAP_OPERANDS
     if (swap_i) begin
-      op_a = {mant_b_i, guard_i, round_i, sticky_i};
-      op_b = {mant_a_i, 3'b0};
+      op_a = {1'b0, mant_b_i, guard_i, round_i, sticky_i};
+      op_b = {1'b0, mant_a_i, 3'b0};
     end else begin
-      op_a = {mant_a_i, 3'b000};
-      op_b = {mant_b_i, guard_i, round_i, sticky_i};
+      op_a = {1'b0, mant_a_i, 3'b000};
+      op_b = {1'b0, mant_b_i, guard_i, round_i, sticky_i};
     end
   end
 
   always_comb begin : OPERATION
     unique case (magnitude_add)
       1'b0: begin  // substraction (2's complement)
-        raw_sum = {1'b0, op_a} + {1'b0, ~op_b} + {{EXT_WIDTH{1'b0}}, 1'b1};
-        sign_o = swap_i; // if there was a swap, it means that the greater value was substracted from the lower one
+        raw_sum = op_a + ~op_b + {{FULL_WIDTH{1'b0}}, 1'b1};
       end
       1'b1: begin  // addition
-        raw_sum = {1'b0, op_a} + {1'b0, op_b};
+        raw_sum = op_a + op_b;
       end
-      default: res_o = 0;
+      default: raw_sum = '0;
     endcase
   end
 
   always_comb begin : ABSOLUTE_VALUE
-    if (!carry_raw && !magnitude_add) abs_value = ~sum + {{EXT_WIDTH - 1{1'b0}}, 1'b1};
+    if (carry_raw && !magnitude_add) abs_value = ~sum + {{EXT_WIDTH - 1{1'b0}}, 1'b1};
     else abs_value = sum;
   end
 
-  always_comb begin : MANT_VALUE
-    if (magnitude_add) sign_result_o = sign_a_i;
-    else sign_result_o = carry_raw ? sign_b_i : sign_a_i;
+  always_comb begin : SIGN_VALUE
+    if (~magnitude_add) begin
+      sign_o = (carry_raw) ? (sign_a_i ^ sign_b_i ^ carry_raw) : sign_a_i;  // if there was a carry, it means op_b > op_a
+    end else sign_o = (op_code_i ^ sign_b_i) ? 1'b0 : 1'b1;
   end
 
 endmodule
