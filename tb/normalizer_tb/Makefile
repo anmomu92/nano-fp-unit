@@ -15,6 +15,7 @@
 # built-in Verilator support requires Verilator >= 5.036.
 
 SIM ?= icarus
+COVERAGE_VERBOSE ?= 0
 TOPLEVEL_LANG ?= verilog
 
 .DEFAULT_GOAL := sim   # plain `make` runs the cocotb sim, not the coverage target
@@ -23,22 +24,11 @@ THIS_DIR     := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 PROJECT_ROOT := $(abspath $(THIS_DIR)/../..)
 SRC_DIR      := $(PROJECT_ROOT)/src
 
+export PYTHONPATH := $(THIS_DIR)/..:$(PYTHONPATH)
+
 VERILOG_SOURCES     = $(SRC_DIR)/normalizer.sv
 COCOTB_TOPLEVEL     = normalizer
 COCOTB_TEST_MODULES = test_normalizer
-
-
-# Environment variable to show internal signals
-DEBUG_INTERNALS ?= 0
-export DEBUG_INTERNALS
-
-# Size of the randomised sweep (lower => reproduce partial coverage)
-SWEEP_N ?= 8000
-export SWEEP_N
- 
-# Also list hit counts for bins that WERE covered (spots thinly-hit bins)
-COVERAGE_VERBOSE ?= 0
-export COVERAGE_VERBOSE
 
 .PHONY: coverage
 coverage:
