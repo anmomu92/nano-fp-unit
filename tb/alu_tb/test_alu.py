@@ -11,6 +11,8 @@ Outputs:
 
 Notes:
     - golden_reference model done with AI.
+    - the test fails when both mantissas are zero.
+        TODO - study why
 """
 
 import random
@@ -18,6 +20,8 @@ from dataclasses import dataclass
 
 import cocotb
 from cocotb.triggers import Timer
+from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
+from common.coverage_report import report_coverage
 
 # ---------
 # CONSTANTS
@@ -33,527 +37,622 @@ MANT_MASK = (1 << MANT_WIDTH) - 1
 EXT_MASK = (1 << EXT_WIDTH) - 1
 FULL_MASK = (1 << FULL_WIDTH) - 1
 
-# directed cases
+COVERAGE = [
+    # CoverPoints
+    "top.sign_a",
+    "top.sign_b",
+    "top.mant_a",
+    "top.mant_b",
+    "top.op_code",
+    "top.guard",
+    "top.round",
+    "top.sticky",
+    "top.swap",
+    "top.grs",
+    "top.truth_table",
+    "top.cmp",
+    # CoverCrosses
+    "top.sign_a_x_mant_a",
+    "top.sign_b_x_mant_b",
+    "top.op_code_x_swap",
+]
+
+
+# ---------------------------------------------------------------------------
+# Directed cases — all reachable through exp_diff
+# ---------------------------------------------------------------------------
 DIRECTED_CASES = [
-    # name,                      sa, sb, mant_a,   mant_b,   op, g, r, s, swap,  res,      g, r, s, sign, carry
-    ("add_pos_pos", 0, 0, 0x800000, 0x400000, 1, 0, 0, 0, 0, 0xC00000, 0, 0, 0, 0, 0),
-    ("add_carry_out", 0, 0, 0xFFFFFF, 0x000001, 1, 0, 0, 0, 0, 0x000000, 0, 0, 0, 0, 1),
-    ("sub_a_greater", 0, 0, 0xC00000, 0x400000, 0, 0, 0, 0, 0, 0x800000, 0, 0, 0, 0, 0),
     (
-        "sub_b_greater_equal_exp",
-        0,
-        0,
-        0x800000,
-        0xC00000,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x400000,
-        0,
-        0,
-        0,
-        1,
-        0,
+        "add_pos_pos",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x400000,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0xC00000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "sub_equal_gives_zero",
-        0,
-        0,
-        0x800000,
-        0x800000,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x000000,
-        0,
-        0,
-        0,
-        0,
-        0,
+        "add_carry_out",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0x000001,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        1,  # carry_o
     ),
     (
-        "add_neg_neg_carry",
-        1,
-        1,
-        0x800000,
-        0x800000,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0x000000,
-        0,
-        0,
-        0,
-        1,
-        1,
+        "sub_a_greater",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xC00000,  # mant_a_i
+        0x400000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x800000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "add_pos_neg_is_sub_mag",
-        0,
-        1,
-        0x900000,
-        0x800000,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0x100000,
-        0,
-        0,
-        0,
-        0,
-        0,
+        "sub_b_greater_equal_exp",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0xC00000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x400000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
     ),
     (
-        "sub_pos_neg_is_add_mag",
-        0,
-        1,
-        0x800000,
-        0x000001,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x800001,
-        0,
-        0,
-        0,
-        0,
-        0,
+        "sub_equal_gives_zero",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x800000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "sub_neg_pos_is_add_mag",
-        1,
-        0,
-        0x800000,
-        0x000001,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x800001,
-        0,
-        0,
-        0,
-        1,
-        0,
+        "add_neg_neg_carry",  # name
+        1,  # sign_a_i
+        1,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x800000,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        1,  # carry_o
     ),
     (
-        "add_with_grs_passthrough",
-        0,
-        0,
-        0x800000,
-        0x000001,
-        1,
-        1,
-        0,
-        1,
-        0,
-        0x800001,
-        1,
-        0,
-        1,
-        0,
-        0,
+        "add_pos_neg_is_sub_mag",  # name
+        0,  # sign_a_i
+        1,  # sign_b_i
+        0x900000,  # mant_a_i
+        0x800000,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x100000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "sub_grs_borrows_from_lsb",
-        0,
-        0,
-        0x800000,
-        0x000000,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0x7FFFFF,
-        1,
-        0,
-        0,
-        0,
-        0,
+        "sub_pos_neg_is_add_mag",  # name
+        0,  # sign_a_i
+        1,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x000001,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x800001,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "swap_sub_sign_from_b",
-        0,
-        0,
-        0x800000,
-        0x400000,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0x400000,
-        0,
-        0,
-        0,
-        1,
-        0,
+        "sub_neg_pos_is_add_mag",  # name
+        1,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x000001,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x800001,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
     ),
     (
-        "swap_add_mixed_signs",
-        1,
-        0,
-        0x900000,
-        0x480000,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0x480000,
-        0,
-        0,
-        0,
-        0,
-        0,
+        "add_with_grs_passthrough",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x000001,  # mant_b_i
+        1,  # op_code_i
+        1,  # guard_i
+        0,  # round_i
+        1,  # sticky_i
+        0,  # swap_i
+        0x800001,  # res_o
+        1,  # guard_o
+        0,  # round_o
+        1,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
+    (
+        "sub_grs_borrows_from_lsb",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x000000,  # mant_b_i
+        0,  # op_code_i
+        1,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x7FFFFF,  # res_o
+        1,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
+    (
+        "swap_sub_sign_from_b",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x400000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        1,  # swap_i
+        0x400000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
+    ),
+    (
+        "swap_add_mixed_signs",  # name
+        1,  # sign_a_i
+        0,  # sign_b_i
+        0x900000,  # mant_a_i
+        0x480000,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        1,  # swap_i
+        0x480000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
 ]
 
-# corner cases
+
+# ---------------------------------------------------------------------------
+# Corner cases — all reachable through exp_diff
+# ---------------------------------------------------------------------------
 CORNER_CASES = [
-    # name,                           sa, sb, mant_a,   mant_b,   op, g, r, s, swap,  res,      g, r, s, sign, carry
-    ("add_max_max", 0, 0, 0xFFFFFF, 0xFFFFFF, 1, 0, 0, 0, 0, 0xFFFFFE, 0, 0, 0, 0, 1),
     (
-        "add_max_plus_shifted_max_grs",
-        0,
-        0,
-        0xFFFFFF,
-        0x7FFFFF,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0x7FFFFE,
-        1,
-        0,
-        0,
-        0,
-        1,
+        "add_max_max",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0xFFFFFF,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0xFFFFFE,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        1,  # carry_o
     ),
     (
-        "sub_max_minus_guard_only",
-        0,
-        0,
-        0xFFFFFF,
-        0x000000,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0xFFFFFE,
-        1,
-        0,
-        0,
-        0,
-        0,
+        "add_max_plus_shifted_max_grs",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0x7FFFFF,  # mant_b_i
+        1,  # op_code_i
+        1,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x7FFFFE,  # res_o
+        1,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        1,  # carry_o
     ),
     (
-        "sub_equal_exp_b_max",
-        0,
-        0,
-        0x800000,
-        0xFFFFFF,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x7FFFFF,
-        0,
-        0,
-        0,
-        1,
-        0,
+        "sub_max_minus_guard_only",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0x000000,  # mant_b_i
+        0,  # op_code_i
+        1,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0xFFFFFE,  # res_o
+        1,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "sub_sticky_only_borrow_ripple",
-        0,
-        0,
-        0x800000,
-        0x000000,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0x7FFFFF,
-        1,
-        1,
-        1,
-        0,
-        0,
+        "sub_equal_exp_b_max",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0xFFFFFF,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x7FFFFF,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
     ),
     (
-        "add_neg_neg_carry_with_swap",
-        1,
-        1,
-        0xFFFFFF,
-        0xFFFFFF,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0xFFFFFE,
-        0,
-        0,
-        0,
-        1,
-        1,
+        "sub_sticky_only_borrow_ripple",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x000000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        1,  # sticky_i
+        0,  # swap_i
+        0x7FFFFF,  # res_o
+        1,  # guard_o
+        1,  # round_o
+        1,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
     (
-        "swap_equal_exp_sub",
-        0,
-        0,
-        0x800000,
-        0xC00000,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0x400000,
-        0,
-        0,
-        0,
-        0,
-        0,
+        "add_neg_neg_carry_with_swap",  # name
+        1,  # sign_a_i
+        1,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0xFFFFFF,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        1,  # swap_i
+        0xFFFFFE,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        1,  # carry_o
+    ),
+    (
+        "swap_equal_exp_sub",  # name
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0xC00000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        1,  # swap_i
+        0x400000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
     ),
 ]
 
-# unreachable cases
+
+# ---------------------------------------------------------------------------
+# Unreachable cases — inputs that exp_diff can never produce for normalized
+# operngs. Still useful to exercise the bare datapath in standalone tests.
+# ---------------------------------------------------------------------------
 UNREACHABLE_CASES = [
-    # name,                           sa, sb, mant_a,   mant_b,   op, g, r, s, swap,  res,      g, r, s, sign, carry
     (
-        "sub_b_greater",
-        0,
-        0,
-        0x400000,
-        0xC00000,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x800000,
-        0,
-        0,
-        0,
-        1,
-        0,
-    ),  # mant_a denormalized
+        "sub_b_greater",  # name (mant_a denormalized)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x400000,  # mant_a_i
+        0xC00000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x800000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "swap_neg_a_plus_pos_b",
-        1,
-        0,
-        0x800000,
-        0x000000,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0x800000,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ),  # b=0 with GRS=000 -> zero operand
+        "swap_neg_a_plus_pos_b",  # name (b=0 with GRS=000 -> zero operng)
+        1,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x000000,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        1,  # swap_i
+        0x800000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "all_zeros",
-        0,
-        0,
-        0x000000,
-        0x000000,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x000000,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ),  # mant_a denormalized
+        "all_zeros",  # name (mant_a denormalized)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x000000,  # mant_a_i
+        0x000000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "add_max_max_grs_all_ones",
-        0,
-        0,
-        0xFFFFFF,
-        0xFFFFFF,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0xFFFFFE,
-        1,
-        1,
-        1,
-        0,
-        1,
-    ),  # GRS!=0 with shift 0
+        "add_max_max_grs_all_ones",  # name (GRS!=0 with shift 0)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0xFFFFFF,  # mant_b_i
+        1,  # op_code_i
+        1,  # guard_i
+        1,  # round_i
+        1,  # sticky_i
+        0,  # swap_i
+        0xFFFFFE,  # res_o
+        1,  # guard_o
+        1,  # round_o
+        1,  # sticky_o
+        0,  # sign_o
+        1,  # carry_o
+    ),
     (
-        "sub_max_minus_zero",
-        0,
-        0,
-        0xFFFFFF,
-        0x000000,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0xFFFFFF,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ),  # b=0 with GRS=000
+        "sub_max_minus_zero",  # name (b=0 with GRS=000)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0xFFFFFF,  # mant_a_i
+        0x000000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0xFFFFFF,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "sub_zero_minus_max",
-        0,
-        0,
-        0x000000,
-        0xFFFFFF,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0xFFFFFF,
-        0,
-        0,
-        0,
-        1,
-        0,
-    ),  # mant_a denormalized
+        "sub_zero_minus_max",  # name (mant_a denormalized)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x000000,  # mant_a_i
+        0xFFFFFF,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0xFFFFFF,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "sub_equal_neg_neg_zero",
-        1,
-        1,
-        0x123456,
-        0x123456,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x000000,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ),  # both denormalized
+        "sub_equal_neg_neg_zero",  # name (both denormalized)
+        1,  # sign_a_i
+        1,  # sign_b_i
+        0x123456,  # mant_a_i
+        0x123456,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "sub_equal_only_sticky_differs",
-        0,
-        0,
-        0x800000,
-        0x800000,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0x000000,
-        0,
-        0,
-        1,
-        1,
-        0,
-    ),  # sticky with shift 0
+        "sub_equal_only_sticky_differs",  # name (sticky with shift 0)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x800000,  # mant_a_i
+        0x800000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        1,  # sticky_i
+        0,  # swap_i
+        0x000000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        1,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "add_zero_plus_max_grs",
-        0,
-        0,
-        0x000000,
-        0xFFFFFF,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0xFFFFFF,
-        1,
-        1,
-        1,
-        0,
-        0,
-    ),  # mant_a=0, GRS with shift 0
+        "add_zero_plus_max_grs",  # name (mant_a=0, GRS with shift 0)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x000000,  # mant_a_i
+        0xFFFFFF,  # mant_b_i
+        1,  # op_code_i
+        1,  # guard_i
+        1,  # round_i
+        1,  # sticky_i
+        0,  # swap_i
+        0xFFFFFF,  # res_o
+        1,  # guard_o
+        1,  # round_o
+        1,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "add_lsb_plus_lsb",
-        0,
-        0,
-        0x000001,
-        0x000001,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0x000002,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ),  # mant_a denormalized
+        "add_lsb_plus_lsb",  # name (mant_a denormalized)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x000001,  # mant_a_i
+        0x000001,  # mant_b_i
+        1,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000002,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "sub_zero_minus_lsb",
-        0,
-        0,
-        0x000000,
-        0x000001,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0x000001,
-        0,
-        0,
-        0,
-        1,
-        0,
-    ),  # mant_a denormalized
+        "sub_zero_minus_lsb",  # name (mant_a denormalized)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x000000,  # mant_a_i
+        0x000001,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        0,  # swap_i
+        0x000001,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        1,  # sign_o
+        0,  # carry_o
+    ),
     (
-        "swap_sub_b_greater_in_mant_b",
-        0,
-        0,
-        0x400000,
-        0x800000,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0x400000,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ),  # mant_a denormalized
+        "swap_sub_b_greater_in_mant_b",  # name (mant_a denormalized)
+        0,  # sign_a_i
+        0,  # sign_b_i
+        0x400000,  # mant_a_i
+        0x800000,  # mant_b_i
+        0,  # op_code_i
+        0,  # guard_i
+        0,  # round_i
+        0,  # sticky_i
+        1,  # swap_i
+        0x400000,  # res_o
+        0,  # guard_o
+        0,  # round_o
+        0,  # sticky_o
+        0,  # sign_o
+        0,  # carry_o
+    ),
 ]
 
 
@@ -624,11 +723,11 @@ def golden_reference(inputs):
         | (inputs.sticky_i & 1)
     )
 
-    # effective signs of the two original operands (B's sign flips on subtraction)
+    # effective signs of the two original operngs (B's sign flips on subtraction)
     eff_sign_a = inputs.sign_a_i & 1
     eff_sign_b = (inputs.sign_b_i & 1) ^ (1 - (inputs.op_code_i & 1))
 
-    # associate signs with the operand actually sitting on mant_a / mant_b
+    # associate signs with the operng actually sitting on mant_a / mant_b
     if inputs.swap_i:
         sign_first, sign_second = eff_sign_b, eff_sign_a
     else:
@@ -640,7 +739,7 @@ def golden_reference(inputs):
         total = a_ext + b_ext
         carry = (total >> (MANT_WIDTH + 3)) & 1
         res_ext = total & ((1 << (MANT_WIDTH + 3)) - 1)
-        sign = sign_first  # both operands share this sign
+        sign = sign_first  # both operngs share this sign
     else:
         carry = 0
         if a_ext >= b_ext:
@@ -698,19 +797,137 @@ async def check(dut, inputs, expected=None, label=""):
     if not expected:
         expected = golden_reference(inputs)
 
-    op_a = int(dut.op_a.value)
-    op_b = int(dut.op_b.value)
-    raw_value = int(dut.raw_sum.value)
-    abs_value = int(dut.abs_value.value)
+    carry_raw = int(dut.carry_raw.value)
+    mag_add = int(dut.magnitude_add.value)
+    op_code = int(dut.op_code_i.value)
+    sign_b = int(dut.sign_b_i.value)
+    eff_sign_b = int(dut.eff_sign_b.value)
 
-    dut._log.info(f"\nRAW_VALUE - 0x{raw_value:08x}")
-    dut._log.info(f"RAW_VALUE - 0b{raw_value:28b}")
-    dut._log.info(f"ABS_VALUE - 0x{abs_value:08x}")
-    dut._log.info(f"ABS_VALUE - 0b{abs_value:28b}")
-    dut._log.info(f"OP_A      - 0b{op_a:28b}")
-    dut._log.info(f"OP_B      - 0b{op_b:28b}")
+    dut._log.info(f"CARRY_RAW = {carry_raw}")
+    dut._log.info(f"MAG_ADD = {mag_add}")
+    dut._log.info(f"OP = {op_code}")
+    dut._log.info(f"SIGN_B = {sign_b}")
+    dut._log.info(f"EFF_SIGN_B = {eff_sign_b}\n")
 
     assert got == expected, f"{label}:\n got {got} expected {expected} [{inputs}]"
+
+    sample({"i": inputs, "o": expected})
+
+    if label:
+        dut._log.info(f"PASS: {label}")
+
+
+# -------------------
+# FUNCTIONAL COVERAGE
+# -------------------
+
+# bins
+MANT_BINS = [
+    "ZERO",
+    "CTZ_0",
+    "CTZ_1",
+    "CTZ_2",
+    "CTZ_3_11",
+    "CTZ_12_22",
+    "CTZ_23",
+]
+
+GRS_BINS = [
+    "G0R0S0",
+    "G0R0S1",
+    "G0R1S0",
+    "G0R1S1",
+    "G1R0S0",
+    "G1R0S1",
+    "G1R1S0",
+    "G1R1S1",
+]
+
+# The 8 rows of the truth table, encoded as (op, sign_a, sign_b)
+TRUTH_TABLE_BINS = [
+    "OP0_SA0_SB0",  # A - B      -> sub magnitudes, sign of greatest
+    "OP0_SA0_SB1",  # A - (-B)   -> add magnitudes, sign 0
+    "OP0_SA1_SB0",  # (-A) - B   -> add magnitudes, sign 1
+    "OP0_SA1_SB1",  # (-A)-(-B)  -> sub magnitudes, sign of greatest
+    "OP1_SA0_SB0",  # A + B      -> add magnitudes, sign 0
+    "OP1_SA0_SB1",  # A + (-B)   -> sub magnitudes, sign of greatest
+    "OP1_SA1_SB0",  # (-A) + B   -> sub magnitudes, sign of greatest
+    "OP1_SA1_SB1",  # (-A)+(-B)  -> add magnitudes, sign 1
+]
+
+CMP_BINS = ["A_GT_B", "A_EQ_B", "A_LT_B"]
+
+
+# functions
+def classify_mant(mant: int) -> str:
+    """
+    Categorize the mantissa.
+    CTZ_<amount-of-zero-bits> stands for Count of Trailing Zeros.
+        - CTZ_1 means that there is one 0 below the first bit set.
+    """
+    if mant == 0x000000:
+        return "ZERO"
+    k = (mant & -mant).bit_length() - 1  # this finds the lowest bit set in the mantissa
+    if k <= 2:
+        return f"CTZ_{k}"
+    if k <= 11:
+        return "CTZ_3_11"
+    if k <= 22:
+        return "CTZ_12_22"
+    return "CTZ_23"
+
+
+def classify_grs(g: int, r: int, s: int) -> str:
+    return f"G{g}R{r}S{s}"
+
+
+def classify_truth_row(op: int, sa: int, sb: int) -> str:
+    return f"OP{op}_SA{sa}_SB{sb}"
+
+
+def classify_cmp(inp) -> str:
+    """
+    Outcome of the magnitude comparison on the extended values
+    {mantissa, G, R, S} — the quantity that drives the sign mux
+    and the borrow direction in subtract mode.
+    mant_a has implicit GRS = 000.
+    """
+    a_ext = inp.mant_a_i << 3
+    b_ext = (inp.mant_b_i << 3) | (inp.guard_i << 2) | (inp.round_i << 1) | inp.sticky_i
+    if a_ext > b_ext:
+        return "A_GT_B"
+    if a_ext == b_ext:
+        return "A_EQ_B"
+    return "A_LT_B"
+
+
+# coverpoints
+@CoverPoint("top.sign_a", xf=lambda t: t["i"].sign_a_i, bins=[0, 1])
+@CoverPoint("top.sign_b", xf=lambda t: t["i"].sign_b_i, bins=[0, 1])
+@CoverPoint("top.mant_a", xf=lambda t: classify_mant(t["i"].mant_a_i), bins=MANT_BINS)
+@CoverPoint("top.mant_b", xf=lambda t: classify_mant(t["i"].mant_b_i), bins=MANT_BINS)
+@CoverPoint("top.op_code", xf=lambda t: t["i"].op_code_i, bins=[0, 1])
+@CoverPoint("top.guard", xf=lambda t: t["i"].guard_i, bins=[0, 1])
+@CoverPoint("top.round", xf=lambda t: t["i"].round_i, bins=[0, 1])
+@CoverPoint("top.sticky", xf=lambda t: t["i"].sticky_i, bins=[0, 1])
+@CoverPoint("top.swap", xf=lambda t: t["i"].swap_i, bins=[0, 1])
+@CoverPoint(
+    "top.grs",
+    xf=lambda t: classify_grs(t["o"].guard_o, t["o"].round_o, t["o"].sticky_o),
+    bins=GRS_BINS,
+)
+@CoverPoint("top.cmp", xf=lambda t: classify_cmp(t["i"]), bins=CMP_BINS)
+@CoverPoint(
+    "top.truth_table",
+    xf=lambda t: classify_truth_row(t["i"].op_code_i, t["i"].sign_a_i, t["i"].sign_b_i),
+    bins=TRUTH_TABLE_BINS,
+)
+@CoverCross("top.sign_a_x_mant_a", items=["top.sign_a", "top.mant_a"])
+@CoverCross("top.sign_b_x_mant_b", items=["top.sign_b", "top.mant_b"])
+@CoverCross("top.mant_x_grs", items=["top.mant_b", "top.grs"])
+@CoverCross("top.op_code_x_swap", items=["top.op_code", "top.swap"])
+def sample(t):
+    pass
 
 
 # --------------
@@ -797,7 +1014,7 @@ async def test_corner_cases(dut):
 # -----------------
 @cocotb.test()
 async def test_random(dut):
-    rand = random.Random(0xC0C0BABE)
+    rng = random.Random(0xC0C0BABE)
     MAX_VAL = (1 << MANT_WIDTH) - 1
     NUM_TESTS = 10000
     for i in range(NUM_TESTS):
@@ -805,12 +1022,30 @@ async def test_random(dut):
             for sign_a in (0, 1):
                 for sign_b in (0, 1):
                     for swap in (0, 1):
-                        mant_a = rand.randint(0, MAX_VAL)
-                        mant_b = rand.randint(0, MAX_VAL)
-                        g = rand.randint(0, 1)
-                        r = rand.randint(0, 1)
-                        s = rand.randint(0, 1)
+                        # mantissa a
+                        # uncomment to increase ZERO chance
+                        # ma_rng = rng.random()
+                        # if ma_rng < 0.1:
+                        #     mant_a = 0
+                        # else:
+                        #     mant_a = rng.randint(0, MAX_VAL)
 
+                        # # mantissa b
+                        # mb_rng = rng.random()
+                        # if mb_rng < 0.1:
+                        #     mant_b = 0
+                        # else:
+                        #     mant_b = rng.randint(0, MAX_VAL)
+
+                        mant_a = rng.randint(0, MAX_VAL)
+                        mant_b = rng.randint(0, MAX_VAL)
+
+                        # grs bits
+                        g = rng.randint(0, 1)
+                        r = rng.randint(0, 1)
+                        s = rng.randint(0, 1)
+
+                        # inputs
                         inputs = AluInputs(
                             sign_a_i=sign_a,
                             sign_b_i=sign_b,
@@ -826,3 +1061,5 @@ async def test_random(dut):
                         await check(dut, inputs)
 
     dut._log.info(f"PASS random: {NUM_TESTS} tests match.")
+
+    report_coverage(dut, COVERAGE)
