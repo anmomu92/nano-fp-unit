@@ -149,7 +149,11 @@ module alu #(
 
   always_comb begin : SIGN_VALUE
     if (~magnitude_add) begin
-      sign_o = (carry_raw) ? eff_sign_b : sign_a_i;  // if there was a carry, it means op_b > op_a
+      if (mant_a_i == '0 && mant_b_i == '0) begin
+        sign_o = 0;
+      end else begin
+        sign_o = (carry_raw) ? eff_sign_b : sign_a_i;  // if there was a carry, it means op_b > op_a
+      end
     end else sign_o = (op_code_i ^ sign_b_i) ? 1'b0 : 1'b1;
   end
 
