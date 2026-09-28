@@ -1,12 +1,72 @@
 //=============================================================================
-// b32_adapter.sv
+// File        : b32_adapter.sv
+// Module      : b32_adapter
+// Project     : nano-fp-unit
+// Author      : Antonio Moran Munoz, UCLM
+// Created     : 2026-06-02
+//-----------------------------------------------------------------------------
+// Purpose
+//   To adapt a number to *binary32* encoding as defined in the IEEE-754 Std,
+//   regardless of the incoming format.
 //
-// IEEE-754 binary16 -> binary32.
+// Specification
+//   No formal spec exists.
+//-----------------------------------------------------------------------------
+// Parameters
+//   WIDTH          : the width in bits of the adapte number. Default: 32
+//-----------------------------------------------------------------------------
+// Interface
+//   <Group signals by function -- clock/reset, request, response, config,
+//    status, debug -- rather than listing them in declaration order. For each,
+//    give direction, width, and meaning. Note active-low signals explicitly.>
 //
-// The operand is carried on a 32-bit bus together with a format_i signal:
-//   - tag == 1 : the operand is encoded as binary16 in bus[15:0]
-//                (bus[31:16] is don't-care / ignored)
-//   - tag == 0 : the operand is already encoded as binary32 on the full bus
+//   num_i     : in  32     number to adapt.
+//   format_i  : in  2      format of the input number.
+//     0 : binary32
+//     1 : binary16
+//
+//   num_o     : out 32     adapted number.
+//-----------------------------------------------------------------------------
+// Protocol
+//   No interface protocol is used for data.
+//
+// Timing
+//   Latency         : none
+//   Throughput      : none
+//   Back-pressure   : none
+//
+// Clock domains
+//   None
+//-----------------------------------------------------------------------------
+// Implementation notes
+//   A combinational block calls the corresponding function depending on the
+//   input format of the number. So far, only the b16 to b32 function is
+//   implemented.
+//
+//   A function to count the number of leading zeros of the number.
+//
+// Assumptions and limitations
+//   None
+//
+// Known issues
+//   None
+//-----------------------------------------------------------------------------
+// Verification status
+//   The testbench is located under the tb/b32_adapter directory.
+//   100% functional coverage PASSED. Last measurement: 2026-09-28
+//
+// Synthesis / implementation status
+//   Not synthesized yet.
+//-----------------------------------------------------------------------------
+// Dependencies
+//   No dependencies.
+//-----------------------------------------------------------------------------
+// Revision history
+//   2026-06-02     Antonio Moran Munoz     Initial commit.
+//-----------------------------------------------------------------------------
+// GPL-3.0 License - UCLM
+//=============================================================================
+
 //
 // Widening binary16 -> binary32 is always EXACT (no rounding is ever
 // required), so this stage is purely combinational re-biasing / padding
