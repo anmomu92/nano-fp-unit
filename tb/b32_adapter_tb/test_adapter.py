@@ -164,62 +164,134 @@ def sample(t):
 # --------------
 # DIRECTED TESTS
 # --------------
+#
+F16_ADAPTING_CASES = [
+    (
+        "positive zero",
+        AdapterInputs(num_i=0x0000, format_i=1),
+        AdapterOutputs(num_o=0x00000000),
+    ),
+    (
+        "negative zero",
+        AdapterInputs(num_i=0x8000, format_i=1),
+        AdapterOutputs(num_o=0x80000000),
+    ),
+    (
+        "positive one",
+        AdapterInputs(num_i=0x3C00, format_i=1),
+        AdapterOutputs(num_o=0x3F800000),
+    ),
+    (
+        "negative two",
+        AdapterInputs(num_i=0xC000, format_i=1),
+        AdapterOutputs(num_o=0xC0000000),
+    ),
+    (
+        "smallest normal",
+        AdapterInputs(num_i=0x0400, format_i=1),
+        AdapterOutputs(num_o=0x38800000),
+    ),
+    (
+        "largest normal",
+        AdapterInputs(num_i=0x7BFF, format_i=1),
+        AdapterOutputs(num_o=0x477FE000),
+    ),
+    (
+        "smallest pos subnormal",
+        AdapterInputs(num_i=0x0001, format_i=1),
+        AdapterOutputs(num_o=0x33800000),
+    ),
+    (
+        "largest subnormal",
+        AdapterInputs(num_i=0x03FF, format_i=1),
+        AdapterOutputs(num_o=0x387FC000),
+    ),
+    (
+        "mid subnormal",
+        AdapterInputs(num_i=0x0200, format_i=1),
+        AdapterOutputs(num_o=0x38000000),
+    ),
+    (
+        "positive infinity",
+        AdapterInputs(num_i=0x7C00, format_i=1),
+        AdapterOutputs(num_o=0x7F800000),
+    ),
+    (
+        "negative infinity",
+        AdapterInputs(num_i=0xFC00, format_i=1),
+        AdapterOutputs(num_o=0xFF800000),
+    ),
+    (
+        "quiet NaN",
+        AdapterInputs(num_i=0x7E00, format_i=1),
+        AdapterOutputs(num_o=0x7FC00000),
+    ),
+    (
+        "quiet NaN, nonzero payload",
+        AdapterInputs(num_i=0x7E01, format_i=1),
+        AdapterOutputs(num_o=0x7FC02000),
+    ),
+    (
+        "signaling NaN payload",
+        AdapterInputs(num_i=0x7C01, format_i=1),
+        AdapterOutputs(num_o=0x7F802000),
+    ),
+]
+
+F32_ADAPTING_CASES = [
+    (
+        "pi",
+        AdapterInputs(num_i=0x40490FDB, format_i=0),
+        AdapterOutputs(num_o=0x40490FDB),
+    ),
+    (
+        "positive zero",
+        AdapterInputs(num_i=0x00000000, format_i=0),
+        AdapterOutputs(num_o=0x00000000),
+    ),
+    (
+        "negative zero",
+        AdapterInputs(num_i=0x80000000, format_i=0),
+        AdapterOutputs(num_o=0x80000000),
+    ),
+    (
+        "positive infinity",
+        AdapterInputs(num_i=0x7F800000, format_i=0),
+        AdapterOutputs(num_o=0x7F800000),
+    ),
+    (
+        "negative infinity",
+        AdapterInputs(num_i=0xFF800000, format_i=0),
+        AdapterOutputs(num_o=0xFF800000),
+    ),
+    (
+        "NaN with payload",
+        AdapterInputs(num_i=0x7FC00001, format_i=0),
+        AdapterOutputs(num_o=0x7FC00001),
+    ),
+    (
+        "arbitrary bit pattern",
+        AdapterInputs(num_i=0xDEADBEEF, format_i=0),
+        AdapterOutputs(num_o=0xDEADBEEF),
+    ),
+]
+
+ALL_CASES = F16_ADAPTING_CASES + F32_ADAPTING_CASES
+
+
+async def run_cases(dut, cases):
+    for label, inputs, outputs in cases:
+        await check(dut, inputs, outputs, label)
+
+
 @cocotb.test()
-async def test_fp16_adapt(dut):
-    """
-    Walk every IEEE-754 category the converter has dedicated logic for.
-    """
-    DIRECTED_CASES = [
-        # (name, fp16 bits, expected fp32 bits)
-        ("positive zero", 0x0000, 0x00000000),
-        ("negative zero", 0x8000, 0x80000000),
-        ("positive one", 0x3C00, 0x3F800000),
-        ("negative two", 0xC000, 0xC0000000),
-        ("smallest normal (2^-14)", 0x0400, 0x38800000),
-        ("largest normal (~65504)", 0x7BFF, 0x477FE000),
-        ("smallest pos subnormal", 0x0001, 0x33800000),
-        ("largest subnormal", 0x03FF, 0x387FC000),
-        ("mid subnormal (exact pow2)", 0x0200, 0x38000000),
-        ("positive infinity", 0x7C00, 0x7F800000),
-        ("negative infinity", 0xFC00, 0xFF800000),
-        ("quiet NaN", 0x7E00, 0x7FC00000),
-        ("quiet NaN, nonzero payload", 0x7E01, 0x7FC02000),
-        ("signaling NaN payload", 0x7C01, 0x7F802000),
-    ]
+async def test_direct_cases(dut):
+    """Test all direct cases.
 
-    for name, num_i, num_o in DIRECTED_CASES:
-        inputs = AdapterInputs(num_i=num_i, format_i=1)
-        outputs = AdapterOutputs(num_o=num_o)
-        await check(dut, inputs, outputs, label=name)
-
-
-@cocotb.test()
-async def test_fp32_passthrough(dut):
+    Args:
+        dut: handle to the design under test.
     """
-    When format_i is low, the full 32-bit word must pass through unchanged.
-    """
-    DIRECTED_CASES = [
-        ("pi", 0x40490FDB, 0x40490FDB),  # pi
-        ("positive zero", 0x00000000, 0x00000000),  # +0
-        ("negative zero", 0x80000000, 0x80000000),  # -0
-        ("positive infinity", 0x7F800000, 0x7F800000),  # +inf
-        ("negative infinity", 0xFF800000, 0xFF800000),  # -inf
-        ("NaN with payload", 0x7FC00001, 0x7FC00001),  # NaN with payload
-        (
-            "Arbitrary",
-            0xDEADBEEF,
-            0xDEADBEEF,
-        ),  # arbitrary bit pattern, must pass through bit-exact
-    ]
-    for name, num_i, num_o in DIRECTED_CASES:
-        inputs = AdapterInputs(num_i=num_i, format_i=0)
-        outputs = AdapterOutputs(num_o=num_o)
-        await check(
-            dut,
-            inputs,
-            outputs,
-            label=name,
-        )
+    await run_cases(dut, ALL_CASES)
 
 
 # ---------------
