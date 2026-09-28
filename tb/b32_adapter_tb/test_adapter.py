@@ -28,8 +28,7 @@ from common.coverage_report import report_coverage
 
 SETTLE = Timer(1, unit="ns")  # combinational settle time, DUT has no clock
 
-# debugging
-DEBUG_INTERNALS = os.environ.get("DEBUG_INTERNALS", "0") == "1"
+COVERAGE = ["top.format"]
 
 
 # --------
@@ -194,4 +193,4 @@ async def test_fp16_exhaustive(dut):
         "PASS exhaustive sweep: all 65536 binary16 patterns match the golden model"
     )
 
-    report_coverage(dut)
+    report_coverage(dut, COVERAGE)
