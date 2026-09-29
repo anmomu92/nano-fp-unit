@@ -90,7 +90,6 @@ module mant_shift #(
     output logic guard_o,
     output logic round_o,
     output logic sticky_o
-
 );
 
   // We need to hold a number big enough so we can get the GRS bits
