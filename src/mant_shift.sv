@@ -1,15 +1,82 @@
-// mant_shifter.sv
+//=============================================================================
+// File        : mant_shift.sv
+// Module      : mant_shift
+// Project     : nano-fp-unit
+// Author      : Antonio Moran Munoz, UCLM
+// Created     : 2026-07-10
+//-----------------------------------------------------------------------------
+// Purpose
+//   To right shift the lower operand.
 //
-// Parameters:
-//  WIDTH - width of the mantissa without GRS bits
-//  MAX_WIDTH - width of the mantissa with GRS bits
+// Specification
+//   No formal spec exists.
+//-----------------------------------------------------------------------------
+// Parameters
+//   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
+//   MAX_SHIFT           : the limit for the right shift.     Default: 27
+//   SHIFT_WIDTH         : the width of the shifting.         Default: 8
+//-----------------------------------------------------------------------------
+// Interface
 //
-// Inputs:
-//  mant_i - the un-shifted mantissa
-//  shift_i - number of bit positions to right shift the mantissa
+//   mant_i       : in  24    mantissa to shift
+//   shift_i      : in  8     amount of shift in bits
 //
-// Outputs:
-//  mant_o - the shifted mantissa
+//   mant_o       : out 24    resulting mantissa
+//   guard_o      : out 1     guard bit
+//   round_o      : out 1     round bit
+//   sticky_o     : out 1     sticky bit
+//-----------------------------------------------------------------------------
+// Protocol
+//   No interface protocol is used for data.
+//
+// Timing
+//   Latency         : none
+//   Throughput      : none
+//   Back-pressure   : none
+//
+// Clock domains
+//   None
+//-----------------------------------------------------------------------------
+// Implementation notes
+//   Combinational logic and continuous assignments
+//
+//   The result logic followd the following truth table
+//
+//   operation | sign_a | sign_b | equation                            | sign_result
+//   ----------|--------|--------|-------------------------------------|-----------------
+//   0         | 0      | 0      | A - B -> substract magnitudes       | greatest operand
+//   0         | 0      | 1      | A - (-B) -> add magnitudes          | 0
+//   0         | 1      | 0      | (-A) - B -> add magnitudes          | 1
+//   0         | 1      | 1      | (-A) - (-B) -> substract magnitudes | greatest operand
+//   1         | 0      | 0      | A + B -> add magnitudes             | 0
+//   1         | 0      | 1      | A + (-B) -> substract magnitudes    | greatest operand
+//   1         | 1      | 0      | (-A) + B -> substract magnitudes    | greatest operand
+//   1         | 1      | 1      | (-A) + (-B) -> add magnitudes       | 1
+//
+//   magnitude_add = operation ^ sign_a ^ sign_b
+//
+// Assumptions and limitations
+//   None
+//
+// Known issues
+//   None
+//-----------------------------------------------------------------------------
+// Verification status
+//   The testbench is located under the tb/alu directory.
+//   Directed tests passed.
+//   Functional coverage complete: 100% - Last measurement: 2026-09-29
+//
+// Synthesis / implementation status
+//   Not synthesized yet.
+//-----------------------------------------------------------------------------
+// Dependencies
+//   No dependencies.
+//-----------------------------------------------------------------------------
+// Revision history
+//   2026-07-10     Antonio Moran Munoz     Initial commit.
+//-----------------------------------------------------------------------------
+// GPL-3.0 License - UCLM
+//=============================================================================
 
 module mant_shift #(
     parameter int MANT_WIDTH  = 24,
@@ -25,8 +92,6 @@ module mant_shift #(
     output logic sticky_o
 
 );
-
-
 
   // We need to hold a number big enough so we can get the GRS bits
   localparam int TOTAL_WIDTH = MANT_WIDTH + MAX_SHIFT;
@@ -55,6 +120,5 @@ module mant_shift #(
     round_o  = result[MAX_SHIFT-2];
     sticky_o = |result[MAX_SHIFT-3:0];
   end
-
 
 endmodule
