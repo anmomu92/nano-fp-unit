@@ -1,3 +1,72 @@
+//=============================================================================
+// File        : alu.sv
+// Module      : alu
+// Project     : nano-fp-unit
+// Author      : Antonio Moran Munoz, UCLM
+// Created     : 2026-06-11
+//-----------------------------------------------------------------------------
+// Purpose
+//   To perform arithmetic operations in binary32 encoded numbers as defined 
+//   in the IEEE-754 Std,
+//
+// Specification
+//   No formal spec exists.
+//-----------------------------------------------------------------------------
+// Parameters
+//   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
+//-----------------------------------------------------------------------------
+// Interface
+//   <Group signals by function -- clock/reset, request, response, config,
+//    status, debug -- rather than listing them in declaration order. For each,
+//    give direction, width, and meaning. Note active-low signals explicitly.>
+//
+//   num_i     : in  32     number to adapt.
+//   format_i  : in  2      format of the input number.
+//     0 : binary32
+//     1 : binary16
+//
+//   num_o     : out 32     adapted number.
+//-----------------------------------------------------------------------------
+// Protocol
+//   No interface protocol is used for data.
+//
+// Timing
+//   Latency         : none
+//   Throughput      : none
+//   Back-pressure   : none
+//
+// Clock domains
+//   None
+//-----------------------------------------------------------------------------
+// Implementation notes
+//   A combinational block calls the corresponding function depending on the
+//   input format of the number. So far, only the b16 to b32 function is
+//   implemented.
+//
+//   A function to count the number of leading zeros of the number.
+//
+// Assumptions and limitations
+//   None
+//
+// Known issues
+//   None
+//-----------------------------------------------------------------------------
+// Verification status
+//   The testbench is located under the tb/b32_adapter directory.
+//   100% functional coverage PASSED. Last measurement: 2026-09-28
+//
+// Synthesis / implementation status
+//   Not synthesized yet.
+//-----------------------------------------------------------------------------
+// Dependencies
+//   No dependencies.
+//-----------------------------------------------------------------------------
+// Revision history
+//   2026-06-02     Antonio Moran Munoz     Initial commit.
+//-----------------------------------------------------------------------------
+// GPL-3.0 License - UCLM
+//=============================================================================
+
 /******************************************************************************
  * File        : alu.sv
  * Author      : Antonio Moran
@@ -47,6 +116,7 @@
  *   - Not tested
  *   - We assume the smaller number (the shifted one) comes through mant_b
  *   signal
+ *   - Activate zero flag when resulting mantissa is zero
  *
  * License :
  *   GPL-3.0 License
@@ -77,7 +147,8 @@ module alu #(
 
     output logic sign_o,
 
-    output logic carry_o
+    output logic carry_o,
+    output logic zero_o
 );
 
   // ----------------
@@ -112,6 +183,8 @@ module alu #(
   assign guard_o = abs_value[2];
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
+
+  assign zero_o = (res_o || carry_o) ? 0 : 1;
 
   // -------------------
   // COMBINATIONAL LOGIC
@@ -155,6 +228,8 @@ module alu #(
         sign_o = (carry_raw) ? eff_sign_b : sign_a_i;  // if there was a carry, it means op_b > op_a
       end
     end else sign_o = (op_code_i ^ sign_b_i) ? 1'b0 : 1'b1;
+
+    if (zero_o) sign_o = 0;
   end
 
 endmodule
