@@ -6,8 +6,8 @@
 // Created     : 2026-06-11
 //-----------------------------------------------------------------------------
 // Purpose
-//   To perform arithmetic operations in binary32 encoded numbers as defined 
-//   in the IEEE-754 Std,
+//   To perform arithmetic operations in binary32 encoded numbers as defined
+//   in the IEEE-754 Std.
 //
 // Specification
 //   No formal spec exists.
