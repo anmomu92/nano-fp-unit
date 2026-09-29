@@ -53,6 +53,21 @@
 // Implementation notes
 //   Combinational logic and continuous assignments
 //
+//   The result logic followd the following truth table
+//
+//   operation | sign_a | sign_b | equation                            | sign_result
+//   ----------|--------|--------|-------------------------------------|-----------------
+//   0         | 0      | 0      | A - B -> substract magnitudes       | greatest operand
+//   0         | 0      | 1      | A - (-B) -> add magnitudes          | 0
+//   0         | 1      | 0      | (-A) - B -> add magnitudes          | 1
+//   0         | 1      | 1      | (-A) - (-B) -> substract magnitudes | greatest operand
+//   1         | 0      | 0      | A + B -> add magnitudes             | 0
+//   1         | 0      | 1      | A + (-B) -> substract magnitudes    | greatest operand
+//   1         | 1      | 0      | (-A) + B -> substract magnitudes    | greatest operand
+//   1         | 1      | 1      | (-A) + (-B) -> add magnitudes       | 1
+//
+//   magnitude_add = operation ^ sign_a ^ sign_b
+//
 // Assumptions and limitations
 //   None
 //
@@ -61,7 +76,8 @@
 //-----------------------------------------------------------------------------
 // Verification status
 //   The testbench is located under the tb/alu directory.
-//   100% functional coverage PASSED. Last measurement: 2026-09-28
+//   Directed tests passed.
+//   Functional coverage incomplete: 90.37% - Last measurement: 2026-09-29
 //
 // Synthesis / implementation status
 //   Not synthesized yet.
@@ -70,7 +86,7 @@
 //   No dependencies.
 //-----------------------------------------------------------------------------
 // Revision history
-//   2026-06-02     Antonio Moran Munoz     Initial commit.
+//   2026-06-11     Antonio Moran Munoz     Initial commit.
 //-----------------------------------------------------------------------------
 // GPL-3.0 License - UCLM
 //=============================================================================
@@ -86,48 +102,7 @@
  *
  *   It receives two exponents and calculates their difference.
  *
- * Truth table
  *
-     * operation | sign_a | sign_b | equation | sign_result
-     * 0 | 0 | 0 | A - B -> substract magnitudes | greatest operand
-     * 0 | 0 | 1 | A - (-B) -> add magnitudes | 0
-     * 0 | 1 | 0 | (-A) - B -> add magnitudes | 1
-     * 0 | 1 | 1 | (-A) - (-B) -> substract magnitudes | greatest operand
-     * 1 | 0 | 0 | A + B -> add magnitudes | 0
-     * 1 | 0 | 1 | A + (-B) -> substract magnitudes | greatest operand
-     * 1 | 1 | 0 | (-A) + B -> substract magnitudes | greatest operand
-     * 1 | 1 | 1 | (-A) + (-B) -> add magnitudes | 1
-     *
-     * magnitude_add = operation ^ sign_a ^ sign_b
- *
- * Parameters :
- *   - MANT_WIDTH - width of the mantissas.
- *
- * Interface :
- *   mant_a_i    - exponent of unshifted mantissa from operand A
- *   mant_b_i    - exponent of shifted mantissa from operand B
- *   op_code_i   - operation code
- *   guard_i     - guard bit
- *   round_i     - round bit
- *   sticky_i    - sticky bit
- *   swap_i      - swap bit that indicates if the operands where switched by
- *   the exp_diff module
- *
- *   sign_o      - sign of the operation
- *   res_o       - result of the operation
- *   guard_o     - guard bit
- *   round_o     - round bit
- *   sticky_o    - sticky bit
- *   carry_o     - carry bit
- *
- * Notes :
- *   - Not tested
- *   - We assume the smaller number (the shifted one) comes through mant_b
- *   signal
- *   - Activate zero flag when resulting mantissa is zero
- *
- * License :
- *   GPL-3.0 License
  ******************************************************************************/
 
 module alu #(
