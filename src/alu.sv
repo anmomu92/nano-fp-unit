@@ -91,20 +91,6 @@
 // GPL-3.0 License - UCLM
 //=============================================================================
 
-/******************************************************************************
- * File        : alu.sv
- * Author      : Antonio Moran
- * Created     : 2026-06-10
- * Last Update : 2026-06-10
- *
- * Description :
- *   This module performs arithmetic-logic operations with the mantissas.
- *
- *   It receives two exponents and calculates their difference.
- *
- *
- ******************************************************************************/
-
 module alu #(
     parameter int MANT_WIDTH = 24
 ) (
