@@ -107,7 +107,7 @@ module normalizer #(
   // - Improvements:
   //   Adapt to a lookup table / decoder 
 
-  function automatic logic [SHIFT_WIDTH-1:0] lzc(input logic [MANT_WIDTH-1:0] mant);
+  function automatic logic [SHIFT_WIDTH-1:0] lzc(input logic [EXT_WIDTH-1:0] mant);
     integer i;
     logic one;
     logic [SHIFT_WIDTH-1:0] cnt;
@@ -115,7 +115,7 @@ module normalizer #(
       one = 1'b0;
       cnt = '0;
 
-      for (i = MANT_WIDTH - 1; i >= 0; i--) begin
+      for (i = EXT_WIDTH - 1; i >= 0; i--) begin
         if (!one) begin
           if (mant[i]) begin
             one = 1'b1;
@@ -151,7 +151,7 @@ module normalizer #(
   // Doing an arithmetic rearrangement we get the following formula:
   // lzc <= exponent - 1, we give exponent - 1 the name of headroom
   always_comb begin : SUBNORMAL_CASE
-    lz_raw   = lzc(mant_i[MANT_WIDTH-1:0]);
+    lz_raw   = lzc(extended_mant[EXT_WIDTH-1:0]);
     headroom = (exp_i == '0) ? '0 : (exp_i - 1'b1);
 
     if ({{(EXP_WIDTH - SHIFT_WIDTH) {1'b0}}, lz_raw} <= headroom) begin
