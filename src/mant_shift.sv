@@ -40,21 +40,6 @@
 // Implementation notes
 //   Combinational logic and continuous assignments
 //
-//   The result logic followd the following truth table
-//
-//   operation | sign_a | sign_b | equation                            | sign_result
-//   ----------|--------|--------|-------------------------------------|-----------------
-//   0         | 0      | 0      | A - B -> substract magnitudes       | greatest operand
-//   0         | 0      | 1      | A - (-B) -> add magnitudes          | 0
-//   0         | 1      | 0      | (-A) - B -> add magnitudes          | 1
-//   0         | 1      | 1      | (-A) - (-B) -> substract magnitudes | greatest operand
-//   1         | 0      | 0      | A + B -> add magnitudes             | 0
-//   1         | 0      | 1      | A + (-B) -> substract magnitudes    | greatest operand
-//   1         | 1      | 0      | (-A) + B -> substract magnitudes    | greatest operand
-//   1         | 1      | 1      | (-A) + (-B) -> add magnitudes       | 1
-//
-//   magnitude_add = operation ^ sign_a ^ sign_b
-//
 // Assumptions and limitations
 //   None
 //
