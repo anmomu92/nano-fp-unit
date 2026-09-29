@@ -16,9 +16,6 @@
 //   WIDTH          : the width in bits of the adapte number. Default: 32
 //-----------------------------------------------------------------------------
 // Interface
-//   <Group signals by function -- clock/reset, request, response, config,
-//    status, debug -- rather than listing them in declaration order. For each,
-//    give direction, width, and meaning. Note active-low signals explicitly.>
 //
 //   num_i     : in  32     number to adapt.
 //   format_i  : in  2      format of the input number.
