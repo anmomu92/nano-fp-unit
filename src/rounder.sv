@@ -193,8 +193,8 @@ module rounder #(
     result_o = {sign_i, exp_f, frac_f};
 
     // flags
-    inexact_o = (guard_i | round_i | sticky_i) & ~zero_i;
     overflow_o = overflow_raw & ~zero_i;
+    inexact_o = (overflow_o) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i;
     underflow_o = (exp_f == '0) & ~zero_i & inexact_o;
   end
 
