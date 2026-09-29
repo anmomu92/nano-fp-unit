@@ -36,7 +36,7 @@
 //   guard_o      : out 1     guard bit
 //   round_o      : out 1     round bit
 //   sticky_o     : out 1     sticky bit
-//   carry_o      : out 1     carry flag
+//   carry_o      : out 1     carry flag    TODO - refactor signal to overflow
 //   zero_o       : out 1     zero flag
 //-----------------------------------------------------------------------------
 // Protocol
@@ -72,7 +72,11 @@
 //   None
 //
 // Known issues
-//   None
+//   - The normalizer module needs an exponent as an input. For some cases the
+//   exponent may change.
+//      TODO - re-calculate exponent
+//   - The normalizer module needs an underflow flag as an input.
+//      TODO - include and calculate underflow flag
 //-----------------------------------------------------------------------------
 // Verification status
 //   The testbench is located under the tb/alu directory.
