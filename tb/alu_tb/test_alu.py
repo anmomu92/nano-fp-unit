@@ -155,6 +155,17 @@ def golden_reference(inputs):
         if res_ext == 0:
             sign = 0  # x - x = +0 (round-to-nearest)
 
+    if (
+        ((res_ext >> 3) & MANT_MASK)
+        or ((res_ext >> 2) & 1)
+        or ((res_ext >> 1) & 1)
+        or (res_ext & 1)
+        or carry
+    ):
+        zero = 0
+    else:
+        zero = 1
+
     return AluOutputs(
         res_o=(res_ext >> 3) & MANT_MASK,
         guard_o=(res_ext >> 2) & 1,
@@ -162,6 +173,7 @@ def golden_reference(inputs):
         sticky_o=res_ext & 1,
         sign_o=sign,
         carry_o=carry,
+        zero_o=zero,
     )
 
 
@@ -341,6 +353,9 @@ def sample(t):
 # ---------------------------------------------------------------------------
 # Directed cases — all reachable through exp_diff
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Directed cases — all reachable through exp_diff
+# ---------------------------------------------------------------------------
 DIRECTED_CASES = [
     (
         "add_pos_pos",
@@ -362,6 +377,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -384,6 +400,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=1,
+            zero_o=0,
         ),
     ),
     (
@@ -406,6 +423,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -428,6 +446,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -450,6 +469,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=1,
         ),
     ),
     (
@@ -472,6 +492,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=1,
+            zero_o=0,
         ),
     ),
     (
@@ -494,6 +515,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -516,6 +538,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -538,6 +561,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -560,6 +584,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=1,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -582,6 +607,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -604,6 +630,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -626,6 +653,7 @@ DIRECTED_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
 ]
@@ -655,6 +683,7 @@ CORNER_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=1,
+            zero_o=0,
         ),
     ),
     (
@@ -677,6 +706,7 @@ CORNER_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=1,
+            zero_o=0,
         ),
     ),
     (
@@ -699,6 +729,7 @@ CORNER_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -721,6 +752,7 @@ CORNER_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -743,6 +775,7 @@ CORNER_CASES = [
             round_o=1,
             sticky_o=1,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -765,6 +798,7 @@ CORNER_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=1,
+            zero_o=0,
         ),
     ),
     (
@@ -787,6 +821,7 @@ CORNER_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
 ]
@@ -817,6 +852,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -839,6 +875,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -861,6 +898,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=1,
         ),
     ),
     (
@@ -883,6 +921,7 @@ UNREACHABLE_CASES = [
             round_o=1,
             sticky_o=1,
             carry_o=1,
+            zero_o=0,
         ),
     ),
     (
@@ -905,6 +944,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -927,6 +967,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -949,6 +990,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=1,
         ),
     ),
     (
@@ -971,6 +1013,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=1,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -993,6 +1036,7 @@ UNREACHABLE_CASES = [
             round_o=1,
             sticky_o=1,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -1015,6 +1059,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -1037,6 +1082,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
     (
@@ -1059,6 +1105,7 @@ UNREACHABLE_CASES = [
             round_o=0,
             sticky_o=0,
             carry_o=0,
+            zero_o=0,
         ),
     ),
 ]
