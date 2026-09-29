@@ -47,6 +47,7 @@
 //
 // Known issues
 //   None
+//
 //-----------------------------------------------------------------------------
 // Verification status
 //   The testbench is located under the tb/b32_adapter directory.
@@ -98,6 +99,8 @@ module b32_adapter #(
   // Leading-zero count
   // This function takes a t16 and counts the number of leading zeros
   // This is done to normalize subnormal numbers.
+  //-------------------------------------------------------------------
+  // TODO - move function to a package as it is used in several modules
   //-------------------------------------------------------------------
   function automatic logic [3:0] lzc(input logic [9:0] t16);
     integer       i;
