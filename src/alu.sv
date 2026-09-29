@@ -16,16 +16,28 @@
 //   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
 //-----------------------------------------------------------------------------
 // Interface
-//   <Group signals by function -- clock/reset, request, response, config,
-//    status, debug -- rather than listing them in declaration order. For each,
-//    give direction, width, and meaning. Note active-low signals explicitly.>
 //
-//   num_i     : in  32     number to adapt.
-//   format_i  : in  2      format of the input number.
-//     0 : binary32
-//     1 : binary16
+//   sign_a_i     : in  1     sign of number a
+//   sign_b_i     : in  1     sign of number b
+//   mant_a_i     : in  24    mantissa of number a
+//   mant_b_i     : in  24    mantissa of number b
+//   op_code_i    : in  1     operation code
+//     0 : substraction
+//     1 : addition
+//   guard_i      : in  1     guard bit
+//   round_i      : in  1     round bit
+//   sticky_i     : in  1     sticky bit
+//   swap_i       : in  1     flag that indicates operands were swapped before
+//     0 : no swapping
+//     1 : swapping
 //
-//   num_o     : out 32     adapted number.
+//   sign_o       : out 1     resulting sign
+//   res_o        : out 24    resulting mantissa
+//   guard_o      : out 1     guard bit
+//   round_o      : out 1     round bit
+//   sticky_o     : out 1     sticky bit
+//   carry_o      : out 1     carry flag
+//   zero_o       : out 1     zero flag
 //-----------------------------------------------------------------------------
 // Protocol
 //   No interface protocol is used for data.
@@ -39,11 +51,7 @@
 //   None
 //-----------------------------------------------------------------------------
 // Implementation notes
-//   A combinational block calls the corresponding function depending on the
-//   input format of the number. So far, only the b16 to b32 function is
-//   implemented.
-//
-//   A function to count the number of leading zeros of the number.
+//   Combinational logic and continuous assignments
 //
 // Assumptions and limitations
 //   None
@@ -52,7 +60,7 @@
 //   None
 //-----------------------------------------------------------------------------
 // Verification status
-//   The testbench is located under the tb/b32_adapter directory.
+//   The testbench is located under the tb/alu directory.
 //   100% functional coverage PASSED. Last measurement: 2026-09-28
 //
 // Synthesis / implementation status
@@ -184,7 +192,9 @@ module alu #(
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
 
-  assign zero_o = (res_o || carry_o) ? 0 : 1;
+  // zero should not be set if carry_o is one even if the result is zero:
+  //    this means the mantissa is zero because it overflowed
+  assign zero_o = (res_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
 
   // -------------------
   // COMBINATIONAL LOGIC
