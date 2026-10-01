@@ -4,10 +4,11 @@ from cocotb_coverage.coverage import coverage_db
 
 
 def report_coverage(dut, coverage):
-    """
-    Print every coverpoint with per-bin hit counts
+    """Print every coverpoint with per-bin hit counts.
 
-    Set COVERAGE_VERBOSE=1 to also list the hit counts of bins that were covered.
+    Args:
+        dut: design under test.
+        coverage (list): list of coverpoint names.
     """
 
     verbose = os.environ.get("COVERAGE_VERBOSE", "0") == "1"

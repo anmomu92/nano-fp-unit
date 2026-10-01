@@ -1,9 +1,56 @@
-// ----------------------------------------------
-// normalizer.sv
+//=============================================================================
+// File        : normalizer.sv
+// Module      : normalizer
+// Project     : nano-fp-unit
+// Author      : Antonio Moran Munoz, UCLM
+// Created     : 2026-07-22
+//-----------------------------------------------------------------------------
+// Purpose
+//   To normalize the result of the operation as defined in the IEEE-754 Std.
 //
-// Author: Antonio Morán Muñoz (anmomu92)
+// Specification
+//   No formal spec exists.
+//-----------------------------------------------------------------------------
+// Parameters
+//   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
+//   EXP_WIDTH           : the width in bits of the exponent. Default: 8
+//-----------------------------------------------------------------------------
+// Interface
 //
-// -- Three situations
+//   sign_i       : in  1     sign of the number to normalize
+//   exp_i        : in  8     exponent of the number to normalize
+//   mant_i       : in  24    mantissa of the number to normalize
+//   guard_i      : in  1     guard bit before normalizing
+//   round_i      : in  1     round bit before normalizing
+//   sticky_i     : in  1     sticky bit before normalizing
+//   carry_i      : in  1     carry flag before normalizing
+//   zero_i       : in  1     zero flag before normalizing
+//
+//   sign_o       : in  1     sign of the normalized number
+//   exp_o        : in  8     exponent of the normalized number
+//   mant_o       : in  24    mantissa of the normalized number
+//   guard_o      : in  1     guard bit after normalizing
+//   round_o      : in  1     round bit after normalizing
+//   sticky_o     : in  1     sticky bit after  normalizing
+//   zero_o       : in  1     zero flag after normalizing
+//   overflow_o   : in  1     overflow flag
+//   underflow_o  : in  1     underflow flag
+//-----------------------------------------------------------------------------
+// Protocol
+//   No interface protocol is used for data.
+//
+// Timing
+//   Latency         : none
+//   Throughput      : none
+//   Back-pressure   : none
+//
+// Clock domains
+//   None
+//-----------------------------------------------------------------------------
+// Implementation notes
+//   Combinational logic and continuous assignments
+//
+//   We can distinguish three cases:
 //
 // 1. Overflow - carry_i == 1
 //    exponent - we have to add 1 to it, so we have to check if the resulting
@@ -23,34 +70,59 @@
 //    underflow flag - if exponent is zero and there are still leading zeros
 //    in the mantissa, we have to set the underflow flag
 //
+// Assumptions and limitations
+//   None
+//
+// Known issues
+//   None
+//-----------------------------------------------------------------------------
+// Verification status
+//   The testbench is located under the tb/alu directory.
+//   Directed tests:
+//      test all_zero_no_zero_flag not passed (it is a situation that should
+//      not occur)
+//   Functional coverage complete: 100% - Last measurement: 2026-09-29
+//
+// Synthesis / implementation status
+//   Not synthesized yet.
+//-----------------------------------------------------------------------------
+// Dependencies
+//   No dependencies.
+//-----------------------------------------------------------------------------
+// Revision history
+//   2026-06-11     Antonio Moran Munoz     Initial commit.
+//-----------------------------------------------------------------------------
+// GPL-3.0 License - UCLM
+//=============================================================================
 
 module normalizer #(
     parameter int MANT_WIDTH = 24,
     parameter int EXP_WIDTH  = 8
 ) (
-    // --------
-    // inputs
-    // --------
-    input logic [MANT_WIDTH-1:0] mant_i,
-    input logic [EXP_WIDTH-1:0] exp_i,
+    // ------
+    // INPUTS
+    // ------
+    // number fields
     input logic sign_i,
+    input logic [EXP_WIDTH-1:0] exp_i,
+    input logic [MANT_WIDTH-1:0] mant_i,
 
     // rounding bits
     input logic guard_i,
     input logic round_i,
     input logic sticky_i,
 
-    // carry bit
+    // flags
     input logic carry_i,
-
     input logic zero_i,
 
-    // --------
-    // outputs
-    // --------
-    output logic [MANT_WIDTH-1:0] mant_o,
-    output logic [EXP_WIDTH-1:0] exp_o,
+    // -------
+    // OUTPUTS
+    // -------
+    // number fields
     output logic sign_o,
+    output logic [EXP_WIDTH-1:0] exp_o,
+    output logic [MANT_WIDTH-1:0] mant_o,
 
     // rounding bits
     output logic guard_o,
@@ -58,9 +130,9 @@ module normalizer #(
     output logic sticky_o,
 
     // status bits
-    output logic zero_o,
+    output logic overflow_o,
     output logic underflow_o,
-    output logic overflow_o
+    output logic zero_o
 );
 
   // ----------------
@@ -105,9 +177,9 @@ module normalizer #(
   //    lzc - the number of leading zeros of the mantissa.
   //
   // - Improvements:
-  //   Adapt to a lookup table / decoder 
+  //   Adapt to a lookup table / decoder
 
-  function automatic logic [SHIFT_WIDTH-1:0] lzc(input logic [MANT_WIDTH-1:0] mant);
+  function automatic logic [SHIFT_WIDTH-1:0] lzc(input logic [EXT_WIDTH-1:0] mant);
     integer i;
     logic one;
     logic [SHIFT_WIDTH-1:0] cnt;
@@ -115,7 +187,7 @@ module normalizer #(
       one = 1'b0;
       cnt = '0;
 
-      for (i = MANT_WIDTH - 1; i >= 0; i--) begin
+      for (i = EXT_WIDTH - 1; i >= 0; i--) begin
         if (!one) begin
           if (mant[i]) begin
             one = 1'b1;
@@ -151,7 +223,7 @@ module normalizer #(
   // Doing an arithmetic rearrangement we get the following formula:
   // lzc <= exponent - 1, we give exponent - 1 the name of headroom
   always_comb begin : SUBNORMAL_CASE
-    lz_raw   = lzc(mant_i[MANT_WIDTH-1:0]);
+    lz_raw   = lzc(extended_mant[EXT_WIDTH-1:0]);
     headroom = (exp_i == '0) ? '0 : (exp_i - 1'b1);
 
     if ({{(EXP_WIDTH - SHIFT_WIDTH) {1'b0}}, lz_raw} <= headroom) begin
