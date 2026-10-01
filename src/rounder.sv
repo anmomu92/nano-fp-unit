@@ -1,32 +1,81 @@
-// rounder.sv
+//=============================================================================
+// File        : rounder.sv
+// Module      : rounder
+// Project     : nano-fp-unit
+// Author      : Antonio Moran Munoz, UCLM
+// Created     : 2026-07-31
+//-----------------------------------------------------------------------------
+// Purpose
+//   To round the result of the operation as defined in the IEEE-754 Std.
 //
-// Author: Antonio Morán Muñoz (anmomu92)
+// Specification
+//   No formal spec exists.
+//-----------------------------------------------------------------------------
+// Parameters
+//   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
+//   EXP_WIDTH           : the width in bits of the exponent. Default: 8
+//-----------------------------------------------------------------------------
+// Interface
+//   sign_i       : in  1     sign of the number to round
+//   exp_i        : in  8     exponent of the number to round
+//   mant_i       : in  24    mantissa of the number to round
+//   guard_i      : in  1     guard bit
+//   round_i      : in  1     round bit
+//   sticky_i     : in  1     sticky bit 
+//   overflow_i   : in  1     overflow flag before rounding
+//   underflow_i  : in  1     underflow flag bejore rounding
+//   zero_i       : in  1     zero flag
+//   round_mode_i : in  3     rounding mode
+//     000: RNE     Round to Nearest, ties to Even (default).
+//     001: RTZ     Round towards Zero.
+//     010: RDN     Round Down (towards $-\infty$).
+//     011: RUP     Round Up (towards $+\infty$).
+//     100: RMM     Round to Nearest, ties to Max Magnitude.
 //
-// Description
-//   - module for rounding the incoming mantissa
-//   - rounding depends on the rounding mode signal
-// Inputs:
-//   - mant_i - the normalized mantissa
-//   - exp_i - the normalized exponend
-//   - sign_i - the sign bit
-//   - guard_i - guard bit (first bit after the mantissa)
-//   - round_i - round bit (second bit after the mantissa)
-//   - sticky_i - sticky bit (result of ORing the remaining bits after the
-//   mantissa)
-//   - overflow_i - it indicates that the number overflowed during
-//   normalization
-//   - underflow_i - it indicates that the number underflowed during
-//   normalization
-//   - round_mode_i - the rounding mode
+//   sign_o       : in  1     sign of the rounded number
+//   exp_o        : in  8     exponent of the rounded number
+//   frac_o       : in  23    fraction of the rounded number
+//   result_o     : in  32    rounded number
+//   overflow_o   : in  1     overflow flag after rounding
+//   underflow_o  : in  1     underflow flag after rounding
+//   inexact_o    : in  1     zero flag after
+//-----------------------------------------------------------------------------
+// Protocol
+//   No interface protocol is used for data.
 //
-// Outputs:
-//   - sign_o - sign of the number
-//   - exp_o - exponent of the number
-//   - frac_o - fraction of the number
-//   - result_o - combination of the three previous values
-//   - overflow_o - it indicates that the rounding overflowed the result
-//   - underflow_o - it indicates that the result is underflowed
-//   - inexact_o - it indicates that the result is not exact
+// Timing
+//   Latency         : none
+//   Throughput      : none
+//   Back-pressure   : none
+//
+// Clock domains
+//   None
+//-----------------------------------------------------------------------------
+// Implementation notes
+//   Combinational logic and continuous assignments
+//
+// Assumptions and limitations
+//   None
+//
+// Known issues
+//   None
+//-----------------------------------------------------------------------------
+// Verification status
+//   The testbench is located under the tb/alu directory.
+//   Directed tests passed.
+//   Functional coverage incomplete: 100% - Last measurement: 2026-09-29
+//
+// Synthesis / implementation status
+//   Not synthesized yet.
+//-----------------------------------------------------------------------------
+// Dependencies
+//   No dependencies.
+//-----------------------------------------------------------------------------
+// Revision history
+//   2026-06-11     Antonio Moran Munoz     Initial commit.
+//-----------------------------------------------------------------------------
+// GPL-3.0 License - UCLM
+//=============================================================================
 
 module rounder #(
     parameter int MANT_WIDTH = 24,
@@ -36,9 +85,9 @@ module rounder #(
     // INPUTS
     // ------
     // number to round
-    input logic [MANT_WIDTH-1:0] mant_i,
-    input logic [EXP_WIDTH-1:0] exp_i,
     input logic sign_i,
+    input logic [EXP_WIDTH-1:0] exp_i,
+    input logic [MANT_WIDTH-1:0] mant_i,
 
     // GRS bits
     input logic guard_i,
