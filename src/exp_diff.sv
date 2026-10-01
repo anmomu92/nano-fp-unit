@@ -20,6 +20,8 @@
 //   exp_b_i     : in  8      exponent of operand b
 //
 //   swap_o       : out 1     flag to indicate a swap in the operands
+//      0 - no swap
+//      1 - swap
 //   shift_o      : out 8     number of bits to right shift the lower number
 //-----------------------------------------------------------------------------
 // Protocol
