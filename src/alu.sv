@@ -32,7 +32,7 @@
 //     1 : swapping
 //
 //   sign_o       : out 1     resulting sign
-//   res_o        : out 24    resulting mantissa
+//   mant_o        : out 24    resulting mantissa
 //   guard_o      : out 1     guard bit
 //   round_o      : out 1     round bit
 //   sticky_o     : out 1     sticky bit
@@ -53,7 +53,7 @@
 // Implementation notes
 //   Combinational logic and continuous assignments
 //
-//   The result logic followd the following truth table
+//   The result logic followed the following truth table
 //
 //   operation | sign_a | sign_b | equation                            | sign_result
 //   ----------|--------|--------|-------------------------------------|-----------------
@@ -113,7 +113,7 @@ module alu #(
     input logic swap_i,  // indicates if operands were swapped during exp_diff
 
     // outputs
-    output logic [MANT_WIDTH-1:0] res_o,
+    output logic [MANT_WIDTH-1:0] mant_o,
     output logic guard_o,
     output logic round_o,
     output logic sticky_o,
@@ -152,14 +152,14 @@ module alu #(
   assign magnitude_add = op_code_i ^ sign_a_i ^ sign_b_i;
 
   assign carry_o = magnitude_add && carry_raw;
-  assign res_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
+  assign mant_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
   assign guard_o = abs_value[2];
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
 
   // zero should not be set if carry_o is one even if the result is zero:
   //    this means the mantissa is zero because it overflowed
-  assign zero_o = (res_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
+  assign zero_o = (mant_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
 
   // -------------------
   // COMBINATIONAL LOGIC
