@@ -13,16 +13,21 @@
 //   No formal spec exists.
 //-----------------------------------------------------------------------------
 // Parameters
-//   WIDTH          : the width in bits of the adapte number. Default: 32
+//   WIDTH          : the width in bits of the adapted number.  Default: 32
+//   PRECISION      : the precision of the format.              Default: 24
+//   EXP_WIDTH      : the width in bits of the exponent.        Default: 8
 //-----------------------------------------------------------------------------
 // Interface
-//
-//   num_i     : in  32     number to adapt.
-//   format_i  : in  2      format of the input number.
+//   - num_i     : in  32     number to adapt.
+//   - format_i  : in  2      format of the input number.
 //     0 : binary32
 //     1 : binary16
 //
-//   num_o     : out 32     adapted number.
+//   - num_o     : out 32     adapted number.
+//   - zero_o    : out 1      zero flag.
+//   - infty_o   : out 1      infinity flag.
+//   - nan_o     : out 1      not a number (NaN) flag.
+//   - sub_o     : out 1      subnormal flag.
 //-----------------------------------------------------------------------------
 // Protocol
 //   No interface protocol is used for data.
@@ -51,7 +56,7 @@
 //-----------------------------------------------------------------------------
 // Verification status
 //   The testbench is located under the tb/b32_adapter directory.
-//   100% functional coverage PASSED. Last measurement: 2026-09-28
+//   Not tested
 //
 // Synthesis / implementation status
 //   Not synthesized yet.
@@ -61,6 +66,7 @@
 //-----------------------------------------------------------------------------
 // Revision history
 //   2026-06-02     Antonio Moran Munoz     Initial commit.
+//   2026-10-06     Antonio Moran Munoz     Added number type indentification.
 //-----------------------------------------------------------------------------
 // GPL-3.0 License - UCLM
 //=============================================================================
@@ -73,7 +79,7 @@
 // range).
 //
 // binary16 : 1 sign (S) | 5 exponent (E) (bias 15)  | 10 significand (T)
-// binary32 : 1 sign (S) | 8 exponent (E) (bias 127) | 23 significand (T) 
+// binary32 : 1 sign (S) | 8 exponent (E) (bias 127) | 23 significand (T)
 //
 // We can have different cases depending on the values of the operand:
 //   E16 == 0,  T16 == 0   -> signed zero
@@ -85,16 +91,36 @@
 //=============================================================================
 
 module b32_adapter #(
-    WIDTH = 32
+    WIDTH = 32,
+    PRECISION = 24,
+    EXP_WIDTH = 8
 ) (
     input logic [WIDTH-1:0] num_i,
     input logic [1:0] format_i,  // maybe define an enum in a package
 
-    output logic [WIDTH-1:0] num_o
+    output logic [WIDTH-1:0] num_o,
+    output logic zero_o,
+    output logic infty_o,
+    output logic nan_o,
+    output logic sub_o
 );
+  localparam int TRAIL_WIDTH = PRECISION - 1;
 
-  // Functions
+  // ---------
+  // VARIABLES
+  // ---------
+  logic [  EXP_WIDTH-1:0] exp;
+  logic [TRAIL_WIDTH-1:0] trail;
 
+  // ----------------------
+  // CONTINUOUS ASSIGNMENTS
+  // ----------------------
+  assign exp   = num_o[WIDTH-2:TRAIL_WIDTH];
+  assign trail = num_o[TRAIL_WIDTH-1:0];
+
+  // ---------
+  // FUNCTIONS
+  // ---------
   //-------------------------------------------------------------------
   // Leading-zero count
   // This function takes a t16 and counts the number of leading zeros
@@ -178,8 +204,38 @@ module b32_adapter #(
     end
   endfunction
 
+  // -------------------
+  // COMBINATIONAL LOGIC
+  // -------------------
 
-  // Combinational Logic
+  // See Clause 3.4 from IEEE 754-2019 Std.
+  always_comb begin : NUMBER_TYPE
+    zero_o  = 1'b0;
+    nan_o   = 1'b0;
+    infty_o = 1'b0;
+
+    // NaN
+    // TODO - use d1 to distinguish between qNaN and sNaN
+    if ((exp == 2 ^ (EXP_WIDTH) - 1) && trail) begin
+      nan_o = 1'b1;
+    end
+
+    // infinity
+    if ((exp == 2 ^ (EXP_WIDTH) - 1) && ~trail) begin
+      infty_o = 1'b0;
+    end
+
+    // infinity
+    if (~exp && ~trail) begin
+      zero_o = 1'b0;
+    end
+
+    // subnormal
+    if (~exp && trail) begin
+      sub_o = 1'b0;
+    end
+  end
+
   always_comb begin : OUTPUT_LOGIC
     // we distinguish different input format_is (so far, only b16)
     case (format_i)
