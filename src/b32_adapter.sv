@@ -213,6 +213,7 @@ module b32_adapter #(
     zero_o  = 1'b0;
     nan_o   = 1'b0;
     infty_o = 1'b0;
+    sub_o   = 1'b0;
 
     // NaN
     // TODO - use d1 to distinguish between qNaN and sNaN
