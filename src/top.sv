@@ -80,13 +80,16 @@ module top #(
   // -------------------
   // COMBINATIONAL LOGIC
   // -------------------
+  // As the unshifted_mant is always inputed into the ALU through operand
+  // B port, if the operand B is lower, there won't be a swapping. On the
+  // other hand, if operand A is lower, it will be swapped.
   always_comb begin : MANTISSA_SELECTION
     if (swap) begin
-      unshifted_mant = {implicit_b, b32_num_b[22:0]};
-      untouched_mant = {implicit_a, b32_num_a[22:0]};
-    end else begin
       unshifted_mant = {implicit_a, b32_num_a[22:0]};
       untouched_mant = {implicit_b, b32_num_b[22:0]};
+    end else begin
+      unshifted_mant = {implicit_b, b32_num_b[22:0]};
+      untouched_mant = {implicit_a, b32_num_a[22:0]};
     end
   end
 
