@@ -105,6 +105,9 @@ module b32_adapter #(
     output logic sub_o
 );
   localparam int TRAIL_WIDTH = PRECISION - 1;
+  localparam int WIDTH16 = 16;
+  localparam int EXP16 = 5;
+  localparam int TRAIL16 = 10;
 
   // ---------
   // VARIABLES
@@ -115,8 +118,8 @@ module b32_adapter #(
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
   // ----------------------
-  assign exp   = num_o[WIDTH-2:TRAIL_WIDTH];
-  assign trail = num_o[TRAIL_WIDTH-1:0];
+  assign exp   = num_i[WIDTH16-2:TRAIL16];
+  assign trail = num_i[TRAIL16-1:0];
 
   // ---------
   // FUNCTIONS
@@ -151,7 +154,6 @@ module b32_adapter #(
     end
   endfunction
 
-  //
   function automatic logic [WIDTH-1:0] b16_to_b32(input logic [15:0] b16_i);
     // local signals
     logic s;
@@ -174,6 +176,7 @@ module b32_adapter #(
           // signed zero number
           e32 = 8'd0;
           t32 = 23'd0;
+          zero_o = 1'b1;
         end else begin
           // subnormal number
           e32 = 8'd0;
@@ -182,21 +185,28 @@ module b32_adapter #(
 
           e32 = 8'd112 - {4'd0, lz};
           t32 = {shifted_t16[8:0], 14'd0};
+          sub_o = 1'b1;
         end
         5'd31:
         if (t16 == 10'd0) begin
           // infinity
           e32 = 8'd255;
           t32 = 23'd0;
+          infty_o = 1'b1;
         end else begin
           // NaN
-          e32 = 8'd255;
-          t32 = {t16, 13'd0};
+          e32   = 8'd255;
+          t32   = {t16, 13'd0};
+          nan_o = 1'b1;
         end
         default: // normal number
         begin
           e32 = {3'd0, e16} + 8'd112;  // re-bias the exponent
           t32 = {t16, 13'd0};
+          zero_o = 1'b0;
+          nan_o = 1'b0;
+          infty_o = 1'b0;
+          sub_o = 1'b0;
         end
       endcase
 
@@ -204,47 +214,64 @@ module b32_adapter #(
     end
   endfunction
 
+  function automatic logic [WIDTH-1:0] b32_passthrough(input logic [31:0] b32_i);
+    // local signals
+    logic s;
+    logic [7:0] e32;
+    logic [22:0] t32;
+
+    begin
+      // extract number fields
+      s   = b32_i[31];
+      e32 = b32_i[30:23];
+      t32 = b32_i[22:0];
+
+      case (e32)
+        8'd0:
+        if (t32 == 23'd0) begin
+          // signed zero number
+          zero_o = 1'b1;
+        end else begin
+          // subnormal number
+          sub_o = 1'b1;
+        end
+        8'd255:
+        if (t32 == 23'd0) begin
+          // infinity
+          infty_o = 1'b1;
+        end else begin
+          // NaN
+          nan_o = 1'b1;
+        end
+        default: // normal number
+        begin
+          zero_o  = 1'b0;
+          nan_o   = 1'b0;
+          infty_o = 1'b0;
+          sub_o   = 1'b0;
+        end
+      endcase
+
+      b32_passthrough = {s, e32, t32};
+    end
+  endfunction
+
   // -------------------
   // COMBINATIONAL LOGIC
   // -------------------
 
-  // See Clause 3.4 from IEEE 754-2019 Std.
-  always_comb begin : NUMBER_TYPE
+  always_comb begin : OUTPUT_LOGIC
     zero_o  = 1'b0;
     nan_o   = 1'b0;
     infty_o = 1'b0;
     sub_o   = 1'b0;
-
-    // NaN
-    // TODO - use d1 to distinguish between qNaN and sNaN
-    if ((exp == 2 ^ (EXP_WIDTH) - 1) && trail) begin
-      nan_o = 1'b1;
-    end
-
-    // infinity
-    if ((exp == 2 ^ (EXP_WIDTH) - 1) && ~trail) begin
-      infty_o = 1'b0;
-    end
-
-    // infinity
-    if (~exp && ~trail) begin
-      zero_o = 1'b0;
-    end
-
-    // subnormal
-    if (~exp && trail) begin
-      sub_o = 1'b0;
-    end
-  end
-
-  always_comb begin : OUTPUT_LOGIC
     // we distinguish different input format_is (so far, only b16)
     case (format_i)
       2'd1: begin
         num_o = b16_to_b32(num_i[15:0]);  // b16 -> b32
       end
       default: begin  // b32 -> b32
-        num_o = num_i;
+        num_o = b32_passthrough(num_i[31:0]);
       end
     endcase
   end
