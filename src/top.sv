@@ -1,7 +1,8 @@
 module top #(
     parameter int WIDTH = 32,
     parameter int MANT_WIDTH = 24,
-    parameter int EXP_WIDTH = 8
+    parameter int EXP_WIDTH = 8,
+    parameter int SHIFT_WIDTH = 8
 ) (
     // inputs
     input logic clk_i,   // crear un proceso secuencial que registre las entradas
@@ -16,14 +17,14 @@ module top #(
     input logic [1:0] format_b_i,
 
     input logic op_code_i,
-    input logic round_mode_i,
+    input logic [2:0] round_mode_i,
 
     // outputs
     output logic [WIDTH-1:0] result_o,
-    output logic [WIDTH-1:0] overflow_o,
-    output logic [WIDTH-1:0] underflow_o,
-    output logic [WIDTH-1:0] inexact_o,
-    output logic [WIDTH-1:0] zero_o
+    output logic overflow_o,
+    output logic underflow_o,
+    output logic inexact_o,
+    output logic zero_o
 );
   // ----------------
   // INTERNAL SIGNALS
@@ -38,13 +39,14 @@ module top #(
   logic sign_b;
   logic [EXP_WIDTH-1:0] exp_a;
   logic [EXP_WIDTH-1:0] exp_b;
+  logic [EXP_WIDTH-1:0] exp_big;  // it holds the bigger exponent
   logic [MANT_WIDTH-1:0] shifted_mant;
   logic [MANT_WIDTH-1:0] unshifted_mant;
   logic [MANT_WIDTH-1:0] untouched_mant;
 
   // result
-  logic alu_sign_norm, norm_sign_round;
-  logic [EXP_WIDTH-1:0] norm_exp_round;
+  logic alu_sign_norm, norm_sign_round, sign_round;
+  logic [EXP_WIDTH-1:0] norm_exp_round, exp_round;
   logic [MANT_WIDTH-1:0] alu_mant_norm, norm_mant_round;
   logic [MANT_WIDTH-2:0] norm_frac;
 
@@ -60,7 +62,7 @@ module top #(
 
   // other
   logic swap;  // 0=A, 1=B
-  logic shift;  // number of bit positions to shift
+  logic [SHIFT_WIDTH-1:0] shift;  // number of bit positions to shift
   logic implicit_a;  // implicit bit a
   logic implicit_b;  // implicit bit b
 
@@ -73,17 +75,21 @@ module top #(
   assign exp_b = b32_num_b[WIDTH-2:23];
   assign implicit_a = (exp_a) ? 1'b1 : 1'b0;
   assign implicit_b = (exp_b) ? 1'b1 : 1'b0;
+  assign exp_big = (exp_a > exp_b) ? exp_a : exp_b;
 
   // -------------------
   // COMBINATIONAL LOGIC
   // -------------------
+  // As the unshifted_mant is always inputed into the ALU through operand
+  // B port, if the operand B is lower, there won't be a swapping. On the
+  // other hand, if operand A is lower, it will be swapped.
   always_comb begin : MANTISSA_SELECTION
     if (swap) begin
-      unshifted_mant = {implicit_b, b32_num_b[22:0]};
-      untouched_mant = {implicit_a, b32_num_a[22:0]};
-    end else begin
       unshifted_mant = {implicit_a, b32_num_a[22:0]};
       untouched_mant = {implicit_b, b32_num_b[22:0]};
+    end else begin
+      unshifted_mant = {implicit_b, b32_num_b[22:0]};
+      untouched_mant = {implicit_a, b32_num_a[22:0]};
     end
   end
 
@@ -93,17 +99,17 @@ module top #(
   b32_adapter #(
       .WIDTH(WIDTH)
   ) b32_adapter_a_inst (
-      .num_i (num_a_i),
-      .format(format_a_i),
-      .num_o (b32_num_a)
+      .num_i(num_a_i),
+      .format_i(format_a_i),
+      .num_o(b32_num_a)
   );
 
   b32_adapter #(
       .WIDTH(WIDTH)
   ) b32_adapter_b_inst (
-      .num_i (num_b_i),
-      .format(format_b_i),
-      .num_o (b32_num_b)
+      .num_i(num_b_i),
+      .format_i(format_b_i),
+      .num_o(b32_num_b)
   );
 
   exp_diff #(
@@ -158,7 +164,7 @@ module top #(
   ) normalizer_inst (
       // inputs
       .sign_i(alu_sign_norm),
-      .exp_i(exp_a),  // TODO - I may need to recalculate the exponent in the ALU module
+      .exp_i(exp_big),  // TODO - I may need to recalculate the exponent in the ALU module
       .mant_i(alu_mant_norm),
 
       .guard_i (alu_guard_norm),
@@ -173,9 +179,13 @@ module top #(
       .exp_o (norm_exp_round),
       .mant_o(norm_mant_round),
 
+      .guard_o (norm_guard_round),
+      .round_o (norm_round_round),
+      .sticky_o(norm_sticky_round),
+
       .overflow_o(norm_overflow_round),
       .underflow_o(norm_underflow_round),
-      .zero_o(norm_zero_round)
+      .zero_o(zero_o)
   );
 
   rounder #(
@@ -191,16 +201,16 @@ module top #(
       .round_i (norm_round_round),
       .sticky_i(norm_sticky_round),
 
-      .overflow_i(alu_overflow_norm),  // TODO - rename the carry flag in ALU module
-      .underflow_i(),  // TODO - include flag in ALU module
-      .zero_i(alu_zero_norm),
+      .overflow_i(norm_overflow_round),  // TODO - rename the carry flag in ALU module
+      .underflow_i(norm_underflow_round),  // TODO - include flag in ALU module
+      .zero_i(zero_o),
 
       .round_mode_i(round_mode_i),
 
       // outputs
       // TODO - revise if sign and exponent have to be connected to the output interface
-      .sign_o(norm_sign_round),
-      .exp_o(norm_exp_round),
+      .sign_o(sign_round),
+      .exp_o(exp_round),
       .frac_o(norm_frac),  // TODO - revise why is this needed
       .result_o(result_o),
 

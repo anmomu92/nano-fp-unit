@@ -91,8 +91,8 @@ class NormOutputs:
             f"\tround_i={self.round_o} \n"
             f"\tsticky_i={self.sticky_o} \n"
             f"\tzero_i={self.zero_o} \n"
-            f"\tzero_i={self.overflow_o} \n"
-            f"\tzero_i={self.underflow_o} \n"
+            f"\toverflow_i={self.overflow_o} \n"
+            f"\tunderflow_i={self.underflow_o} \n"
         )
 
 
@@ -280,6 +280,8 @@ async def check(dut, inputs, expected=None, label=""):
 
     if expected == None:
         expected = golden_reference(inputs)
+
+    assert got == expected, f"{label} got {got} expected {expected} [{inputs}]"
 
     # record functional coverage for this stimulus
     sample({"i": inputs, "o": got})
@@ -639,7 +641,8 @@ ZERO_CASES = [
         ),
     ),
     (
-        "all_zero_no_zero_flag",
+        # detect zero mant in alu module
+        "all_zero_no_zero_flag (this case shouldn't occur)",
         NormInputs(
             sign_i=0,
             exp_i=0x7F,

@@ -21,7 +21,7 @@
 //   mant_i       : in  24    mantissa of the number to round
 //   guard_i      : in  1     guard bit
 //   round_i      : in  1     round bit
-//   sticky_i     : in  1     sticky bit 
+//   sticky_i     : in  1     sticky bit
 //   overflow_i   : in  1     overflow flag before rounding
 //   underflow_i  : in  1     underflow flag bejore rounding
 //   zero_i       : in  1     zero flag
@@ -236,10 +236,17 @@ module rounder #(
       overflow_o = overflow_raw;
     end
 
-    sign_o = sign_i;
+    // See Clause 6.3 paragraph 3 from the IEEE 754-2019 Std.
+    if (mant_i == '0 && round_mode_i == RDN) begin
+      sign_o   = 1;
+      result_o = {1'b1, exp_f, frac_f};
+    end else begin
+      sign_o   = sign_i;
+      result_o = {sign_i, exp_f, frac_f};
+    end
+
     exp_o = exp_f;
     frac_o = frac_f;
-    result_o = {sign_i, exp_f, frac_f};
 
     // flags
     overflow_o = overflow_raw & ~zero_i;

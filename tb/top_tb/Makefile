@@ -26,9 +26,10 @@ SRC_DIR      := $(PROJECT_ROOT)/src
 
 export PYTHONPATH := $(THIS_DIR)/..:$(PYTHONPATH)
 
-VERILOG_SOURCES     = $(SRC_DIR)/rounder.sv
-COCOTB_TOPLEVEL     = rounder 
-COCOTB_TEST_MODULES = test_rounder
+VERILOG_SOURCES     = $(SRC_DIR)/top.sv $(SRC_DIR)/b32_adapter.sv $(SRC_DIR)/exp_diff.sv $(SRC_DIR)/mant_shift.sv $(SRC_DIR)/alu.sv $(SRC_DIR)/normalizer.sv $(SRC_DIR)/rounder.sv
+
+COCOTB_TOPLEVEL     = top
+COCOTB_TEST_MODULES = test_top
 
 .PHONY: coverage
 coverage:
