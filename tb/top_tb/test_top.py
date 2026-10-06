@@ -1,5 +1,5 @@
 """
-top testbench for the rounder.sv module
+top testbench for the top.sv module
 """
 
 import os
