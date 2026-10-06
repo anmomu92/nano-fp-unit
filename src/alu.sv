@@ -16,28 +16,29 @@
 //   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
 //-----------------------------------------------------------------------------
 // Interface
-//
-//   sign_a_i     : in  1     sign of number a
-//   sign_b_i     : in  1     sign of number b
-//   mant_a_i     : in  24    mantissa of number a
-//   mant_b_i     : in  24    mantissa of number b
-//   op_code_i    : in  1     operation code
+//   - sign_a_i     : in  1     sign of number a
+//   - sign_b_i     : in  1     sign of number b
+//   - mant_a_i     : in  24    mantissa of number a
+//   - mant_b_i     : in  24    mantissa of number b
+//   - op_code_i    : in  1     operation code
 //     0 : substraction
 //     1 : addition
-//   guard_i      : in  1     guard bit
-//   round_i      : in  1     round bit
-//   sticky_i     : in  1     sticky bit
-//   swap_i       : in  1     flag that indicates operands were swapped before
+//   - guard_i      : in  1     guard bit
+//   - round_i      : in  1     round bit
+//   - sticky_i     : in  1     sticky bit
+//   - swap_i       : in  1     flag that indicates operands were swapped before
 //     0 : no swapping
 //     1 : swapping
 //
-//   sign_o       : out 1     resulting sign
-//   mant_o        : out 24    resulting mantissa
-//   guard_o      : out 1     guard bit
-//   round_o      : out 1     round bit
-//   sticky_o     : out 1     sticky bit
-//   carry_o      : out 1     carry flag    TODO - refactor signal to overflow
-//   zero_o       : out 1     zero flag
+//   - sign_o       : out 1     resulting sign
+//   - mant_o        : out 24    resulting mantissa
+//   - guard_o      : out 1     guard bit
+//   - round_o      : out 1     round bit
+//   - sticky_o     : out 1     sticky bit
+//   - carry_o      : out 1     carry flag    TODO - refactor signal to overflow
+//   - zero_o       : out 1     zero flag
+//   - both_zero_o  : out 1     flag that indicates if both operands are zero
+//   (see Clause 6.3, paragraph 3, line 4)
 //-----------------------------------------------------------------------------
 // Protocol
 //   No interface protocol is used for data.

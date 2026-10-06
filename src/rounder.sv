@@ -16,29 +16,31 @@
 //   EXP_WIDTH           : the width in bits of the exponent. Default: 8
 //-----------------------------------------------------------------------------
 // Interface
-//   sign_i       : in  1     sign of the number to round
-//   exp_i        : in  8     exponent of the number to round
-//   mant_i       : in  24    mantissa of the number to round
-//   guard_i      : in  1     guard bit
-//   round_i      : in  1     round bit
-//   sticky_i     : in  1     sticky bit
-//   overflow_i   : in  1     overflow flag before rounding
-//   underflow_i  : in  1     underflow flag bejore rounding
-//   zero_i       : in  1     zero flag
-//   round_mode_i : in  3     rounding mode
+//   - sign_i       : in  1     sign of the number to round
+//   - exp_i        : in  8     exponent of the number to round
+//   - mant_i       : in  24    mantissa of the number to round
+//   - guard_i      : in  1     guard bit
+//   - round_i      : in  1     round bit
+//   - sticky_i     : in  1     sticky bit
+//   - overflow_i   : in  1     overflow flag before rounding
+//   - underflow_i  : in  1     underflow flag bejore rounding
+//   - zero_i       : in  1     zero flag
+//   - both_zero_i  : in  1     flag that indicates if both operands are zero
+//   (see Clause 6.3, paragraph 3, line 4)
+//   - round_mode_i : in  3     rounding mode
 //     000: RNE     Round to Nearest, ties to Even (default).
 //     001: RTZ     Round towards Zero.
 //     010: RDN     Round Down (towards $-\infty$).
 //     011: RUP     Round Up (towards $+\infty$).
 //     100: RMM     Round to Nearest, ties to Max Magnitude.
 //
-//   sign_o       : in  1     sign of the rounded number
-//   exp_o        : in  8     exponent of the rounded number
-//   frac_o       : in  23    fraction of the rounded number
-//   result_o     : in  32    rounded number
-//   overflow_o   : in  1     overflow flag after rounding
-//   underflow_o  : in  1     underflow flag after rounding
-//   inexact_o    : in  1     zero flag after
+//   - sign_o       : in  1     sign of the rounded number
+//   - exp_o        : in  8     exponent of the rounded number
+//   - frac_o       : in  23    fraction of the rounded number
+//   - result_o     : in  32    rounded number
+//   - overflow_o   : in  1     overflow flag after rounding
+//   - underflow_o  : in  1     underflow flag after rounding
+//   - inexact_o    : in  1     zero flag after
 //-----------------------------------------------------------------------------
 // Protocol
 //   No interface protocol is used for data.
@@ -98,6 +100,7 @@ module rounder #(
     input logic overflow_i,
     input logic underflow_i,
     input logic zero_i,
+    input logic both_zero_i,
 
     // round mode
     input logic [2:0] round_mode_i,
