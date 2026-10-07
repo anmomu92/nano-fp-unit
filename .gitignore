@@ -5,6 +5,7 @@ env/
 __pycache__/
 results.xml
 sim_build/
+docs/specs/
 coverage_functional.xml
 adapter.tex
 alu.tex
@@ -21,3 +22,7 @@ main.snm
 main.tex
 main.toc
 main.vrb
+errors.txt
+cov_main.cpp
+cov_tb.sv
+run_coverage.sh
