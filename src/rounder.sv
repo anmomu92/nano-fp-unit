@@ -57,7 +57,14 @@
 //   Combinational logic and continuous assignments
 //
 // Assumptions and limitations
-//   None
+//   - Inexact numeric floating-point results always have the same sign as the
+//   unrounded result.
+//   - NaN are not rounded.
+//   - When the result of an operation is exactly zero, the sign shall be +0
+//   for all rounding modes except for roundTowardNegative (RDN), which will
+//   be -0.
+//   - Under all rounding modes, if x is zero, then x+x and x-(-x) have the
+//   sign of x.
 //
 // Known issues
 //   None
@@ -240,13 +247,19 @@ module rounder #(
     end
 
     // See Clause 6.3 paragraph 3 from the IEEE 754-2019 Std.
-    if (mant_i == '0 && round_mode_i == RDN) begin
-      sign_o   = 1;
+    if (mant_i == '0 && round_mode_i == RDN && both_zero_i == 1'b0) begin
+      sign_o   = 1'b1;
       result_o = {1'b1, exp_f, frac_f};
     end else begin
-      sign_o   = sign_i;
-      result_o = {sign_i, exp_f, frac_f};
+      if (mant_i == '0 && round_mode_i != RDN && both_zero_i == 1'b0) begin
+        sign_o   = 1'b0;
+        result_o = {1'b0, exp_f, frac_f};
+      end else begin
+        sign_o   = sign_i;
+        result_o = {sign_i, exp_f, frac_f};
+      end
     end
+
 
     exp_o = exp_f;
     frac_o = frac_f;
@@ -254,7 +267,7 @@ module rounder #(
     // flags
     overflow_o = overflow_raw & ~zero_i;
     inexact_o = (overflow_o) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i;
-    underflow_o = (exp_f == '0) & ~zero_i & inexact_o;
+    underflow_o = ((exp_f == '0) && (frac_o == '0) && (guard_i | round_mode_i | sticky_i) && ~zero_i) ? 1'b1 : 1'b0;
   end
 
 endmodule
