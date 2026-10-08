@@ -111,7 +111,9 @@ module alu #(
     input logic round_i,
     input logic sticky_i,
 
-    input logic swap_i,  // indicates if operands were swapped during exp_diff
+    input logic swap_i,    // indicates if operands were swapped during exp_diff
+    input logic zero_a_i,
+    input logic zero_b_i,
 
     // outputs
     output logic [MANT_WIDTH-1:0] mant_o,
@@ -122,7 +124,8 @@ module alu #(
     output logic sign_o,
 
     output logic carry_o,
-    output logic zero_o
+    output logic zero_o,
+    output logic both_zero_o
 );
 
   // ----------------
@@ -161,6 +164,7 @@ module alu #(
   // zero should not be set if carry_o is one even if the result is zero:
   //    this means the mantissa is zero because it overflowed
   assign zero_o = (mant_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
+  assign both_zero_o = (magnitude_add && zero_a_i && zero_b_i);
 
   // -------------------
   // COMBINATIONAL LOGIC
