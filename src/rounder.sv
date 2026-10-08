@@ -267,7 +267,7 @@ module rounder #(
     // flags
     overflow_o = overflow_raw & ~zero_i;
     inexact_o = (overflow_o) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i;
-    underflow_o = ((exp_f == '0) && (frac_o == '0) && (guard_i | round_mode_i | sticky_i) && ~zero_i) ? 1'b1 : 1'b0;
+    underflow_o = ((exp_f == '0) && ((frac_o != '0) || (guard_i | round_mode_i | sticky_i)) && ~zero_i ) ? 1'b1 : underflow_i;
   end
 
 endmodule
