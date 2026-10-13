@@ -172,6 +172,8 @@ module rounder #(
   logic [EXP_WIDTH-1:0] exp_ovf;
   logic [FRAC_WIDTH-1:0] frac_ovf;
 
+  // underflow handling
+  logic is_tiny;
 
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
@@ -188,6 +190,9 @@ module rounder #(
   //   - Situation 2: the overflow ocurs during rounding (rounded exponent is
   //   all 1s)
   assign overflow_raw = overflow_i | (exp_r == EXP_ALL1);
+
+  // calculating tinyness
+  assign is_tiny = (exp_f == '0 && ~zero_i) | (mant_i == 24'h7FFFFF && ~round_i);
 
   // -------------------
   // COMBINATIONAL LOGIC
@@ -267,7 +272,10 @@ module rounder #(
     // flags
     overflow_o = overflow_raw & ~zero_i;
     inexact_o = (overflow_o) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i;
-    underflow_o = ((exp_f == '0) && ((frac_o != '0) || (guard_i | round_mode_i | sticky_i)) && ~zero_i ) ? 1'b1 : underflow_i;
+    // The underflow flag can take these values:
+    //  - 0 if result is tiny and inexact
+    //  - 1 if the result is tiny but exact
+    underflow_o = (is_tiny && inexact_o) ? 1'b1 : 1'b0;
   end
 
 endmodule
