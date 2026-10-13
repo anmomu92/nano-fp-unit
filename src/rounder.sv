@@ -257,8 +257,13 @@ module rounder #(
       result_o = {1'b1, exp_f, frac_f};
     end else begin
       if (mant_i == '0 && round_mode_i != RDN && both_zero_i == 1'b0) begin
-        sign_o   = 1'b0;
-        result_o = {1'b0, exp_f, frac_f};
+        if (zero_i) begin
+          sign_o   = 1'b0;
+          result_o = {1'b0, exp_f, frac_f};
+        end else begin
+          sign_o   = sign_i;
+          result_o = {sign_i, exp_f, frac_f};
+        end
       end else begin
         sign_o   = sign_i;
         result_o = {sign_i, exp_f, frac_f};
