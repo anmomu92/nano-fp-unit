@@ -321,6 +321,205 @@ async def check(dut, inputs, expected=None, label=""):
 # DIRECTED TESTS
 # --------------
 
+F32_NORMAL_CASES = [
+    (
+        "2.5 + 1.25 = 3.75",
+        FpuInputs(
+            num_a_i=0x40200000,
+            num_b_i=0x3FA00000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x40700000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "10.0 - 3.5 = 6.5",
+        FpuInputs(
+            num_a_i=0x41200000,
+            num_b_i=0x40600000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=0,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x40D00000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "100.0 + 200.0 = 300.0",
+        FpuInputs(
+            num_a_i=0x42C80000,
+            num_b_i=0x43480000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x43960000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "-7.0 + 3.0 = -4.0",
+        FpuInputs(
+            num_a_i=0xC0E00000,
+            num_b_i=0x40400000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0xC0800000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "-2.5 - 1.5 = -4.0",
+        FpuInputs(
+            num_a_i=0xC0200000,
+            num_b_i=0x3FC00000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=0,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0xC0800000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "3.0 - (-2.0) = 5.0",
+        FpuInputs(
+            num_a_i=0x40400000,
+            num_b_i=0xC0000000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=0,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x40A00000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "0.75 + 0.125 = 0.875",
+        FpuInputs(
+            num_a_i=0x3F400000,
+            num_b_i=0x3E000000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x3F600000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "1.5 + 0.25 = 1.75",
+        FpuInputs(
+            num_a_i=0x3FC00000,
+            num_b_i=0x3E800000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x3FE00000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "1024.0 - 0.5 = 1023.5",
+        FpuInputs(
+            num_a_i=0x44800000,
+            num_b_i=0x3F000000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=0,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x447FE000, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "1.2345 + 1.4142135 = 2.6487136",
+        FpuInputs(
+            num_a_i=0x3F9E0419,
+            num_b_i=0x3FB504F3,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x40298486, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "123.456 - 25.0 = 98.456",
+        FpuInputs(
+            num_a_i=0x42F6E979,
+            num_b_i=0x41C80000,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=0,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x42C4E979, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "pi - e = 0.42331100",
+        FpuInputs(
+            num_a_i=0x40490FDB,
+            num_b_i=0x402DF854,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=0,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x3ED8BC38, overflow_o=0, underflow_o=0, inexact_o=0, zero_o=0
+        ),
+    ),
+    (
+        "pi + e = 5.8598747 (inexact)",
+        FpuInputs(
+            num_a_i=0x40490FDB,
+            num_b_i=0x402DF854,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x40BB8418, overflow_o=0, underflow_o=0, inexact_o=1, zero_o=0
+        ),
+    ),
+    (
+        "1000.0 + 0.1 = 1000.1 (inexact)",
+        FpuInputs(
+            num_a_i=0x447A0000,
+            num_b_i=0x3DCCCCCD,
+            format_a_i=0,
+            format_b_i=0,
+            op_code_i=1,
+            round_mode_i=0,
+        ),
+        FpuOutputs(
+            result_o=0x447A0666, overflow_o=0, underflow_o=0, inexact_o=1, zero_o=0
+        ),
+    ),
+]
+
 F32_BASIC_CASES = [
     (
         "1.0 + 1.0 = 2.0",
@@ -802,7 +1001,8 @@ F32_SPECIAL_VALUE_CASES = [
 ]
 
 ALL_CASES = (
-    F32_BASIC_CASES
+    F32_NORMAL_CASES
+    + F32_BASIC_CASES
     + F32_SIGNED_ZERO_CASES
     + F32_ROUNDING_CASES
     + F32_OVERFLOW_CASES
@@ -814,6 +1014,11 @@ ALL_CASES = (
 async def run_cases(dut, cases):
     for label, inputs, outputs in cases:
         await check(dut, inputs, outputs, label)
+
+
+@cocotb.test()
+async def test_normal_cases(dut):
+    await run_cases(dut, F32_NORMAL_CASES)
 
 
 @cocotb.test()
