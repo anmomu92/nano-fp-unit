@@ -59,8 +59,8 @@ module top #(
   logic alu_overflow_norm, norm_overflow_round;
   logic alu_underflow_norm, norm_underflow_round;
   logic alu_zero_norm, norm_zero_round;
-  logic norm_zero_a, norm_infty_a, norm_nan_a, norm_sub_a;
-  logic norm_zero_b, norm_infty_b, norm_nan_b, norm_sub_b;
+  logic b32_zero_a_alu, b32_infty_a_alu, b32_nan_a_alu, b32_sub_a_alu;
+  logic b32_zero_b_alu, b32_infty_b_alu, b32_nan_b_alu, b32_sub_b_alu;
   logic alu_both_round;
 
   // other
@@ -102,43 +102,59 @@ module top #(
   b32_adapter #(
       .WIDTH(WIDTH)
   ) b32_adapter_a_inst (
+      // inputs
       .num_i(num_a_i),
       .format_i(format_a_i),
+
+      // outputs
       .num_o(b32_num_a),
-      .zero_o(norm_zero_a),
-      .infty_o(norm_infty_a),
-      .nan_o(norm_nan_a),
-      .sub_o(norm_sub_a)
+
+      .zero_o (b32_zero_a_alu),
+      .infty_o(b32_infty_a_alu),
+      .nan_o  (b32_nan_a_alu),
+      .sub_o  (b32_sub_a_alu)
   );
 
   b32_adapter #(
       .WIDTH(WIDTH)
   ) b32_adapter_b_inst (
+      // inputs
       .num_i(num_b_i),
       .format_i(format_b_i),
+
+      // outputs
       .num_o(b32_num_b),
-      .zero_o(norm_zero_b),
-      .infty_o(norm_infty_b),
-      .nan_o(norm_nan_b),
-      .sub_o(norm_sub_b)
+
+      .zero_o (b32_zero_b_alu),
+      .infty_o(b32_infty_b_alu),
+      .nan_o  (b32_nan_b_alu),
+      .sub_o  (b32_sub_b_alu)
   );
 
 
   exp_diff #(
       .EXP_WIDTH(EXP_WIDTH)
   ) exp_diff_inst (
+      // inputs
       .exp_a_i(exp_a),
       .exp_b_i(exp_b),
-      .swap_o (swap),
-      .shift_o(shift)
+
+      // outputs
+      .shift_o(shift),
+
+      .swap_o(swap)
   );
 
   mant_shift #(
       .MANT_WIDTH(MANT_WIDTH)
   ) mant_shift_inst (
-      .mant_i  (unshifted_mant),
-      .shift_i (shift),
-      .mant_o  (shifted_mant),
+      // inputs
+      .mant_i (unshifted_mant),
+      .shift_i(shift),
+
+      // outputs
+      .mant_o(shifted_mant),
+
       .guard_o (shift_guard_alu),
       .round_o (shift_round_alu),
       .sticky_o(shift_sticky_alu)
@@ -160,12 +176,17 @@ module top #(
       .swap_i(swap),
       .op_code_i(op_code_i),
 
+      .zero_a_i(b32_zero_a_alu),
+      .zero_b_i(b32_zero_b_alu),
+
       // outputs
       .sign_o(alu_sign_norm),
       .mant_o(alu_mant_norm),
-      .guard_o(alu_guard_norm),
-      .round_o(alu_round_norm),
+
+      .guard_o (alu_guard_norm),
+      .round_o (alu_round_norm),
       .sticky_o(alu_sticky_norm),
+
       .carry_o(alu_overflow_norm),
       .zero_o(alu_zero_norm),
       .both_zero_o(alu_both_round)
