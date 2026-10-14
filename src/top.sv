@@ -59,6 +59,9 @@ module top #(
   logic alu_overflow_norm, norm_overflow_round;
   logic alu_underflow_norm, norm_underflow_round;
   logic alu_zero_norm, norm_zero_round;
+  logic norm_zero_a, norm_infty_a, norm_nan_a, norm_sub_a;
+  logic norm_zero_b, norm_infty_b, norm_nan_b, norm_sub_b;
+  logic alu_both_round;
 
   // other
   logic swap;  // 0=A, 1=B
@@ -101,7 +104,11 @@ module top #(
   ) b32_adapter_a_inst (
       .num_i(num_a_i),
       .format_i(format_a_i),
-      .num_o(b32_num_a)
+      .num_o(b32_num_a),
+      .zero_o(norm_zero_a),
+      .infty_o(norm_infty_a),
+      .nan_o(norm_nan_a),
+      .sub_o(norm_sub_a)
   );
 
   b32_adapter #(
@@ -109,8 +116,13 @@ module top #(
   ) b32_adapter_b_inst (
       .num_i(num_b_i),
       .format_i(format_b_i),
-      .num_o(b32_num_b)
+      .num_o(b32_num_b),
+      .zero_o(norm_zero_b),
+      .infty_o(norm_infty_b),
+      .nan_o(norm_nan_b),
+      .sub_o(norm_sub_b)
   );
+
 
   exp_diff #(
       .EXP_WIDTH(EXP_WIDTH)
@@ -149,13 +161,14 @@ module top #(
       .op_code_i(op_code_i),
 
       // outputs
-      .sign_o  (alu_sign_norm),
-      .mant_o  (alu_mant_norm),
-      .guard_o (alu_guard_norm),
-      .round_o (alu_round_norm),
+      .sign_o(alu_sign_norm),
+      .mant_o(alu_mant_norm),
+      .guard_o(alu_guard_norm),
+      .round_o(alu_round_norm),
       .sticky_o(alu_sticky_norm),
-      .carry_o (alu_overflow_norm),
-      .zero_o  (alu_zero_norm)
+      .carry_o(alu_overflow_norm),
+      .zero_o(alu_zero_norm),
+      .both_zero_o(alu_both_round)
   );
 
   normalizer #(
@@ -204,6 +217,7 @@ module top #(
       .overflow_i(norm_overflow_round),  // TODO - rename the carry flag in ALU module
       .underflow_i(norm_underflow_round),  // TODO - include flag in ALU module
       .zero_i(zero_o),
+      .both_zero_i(alu_both_round),
 
       .round_mode_i(round_mode_i),
 
