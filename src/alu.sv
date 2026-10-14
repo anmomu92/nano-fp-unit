@@ -29,6 +29,8 @@
 //   - swap_i       : in  1     flag that indicates operands were swapped before
 //     0 : no swapping
 //     1 : swapping
+//   - zero_a_i     : in  1     zero flag for operand a
+//   - zero_b_i     : in  1     zero flag for operand b
 //
 //   - sign_o       : out 1     resulting sign
 //   - mant_o        : out 24    resulting mantissa
