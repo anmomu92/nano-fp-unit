@@ -16,29 +16,31 @@
 //   EXP_WIDTH           : the width in bits of the exponent. Default: 8
 //-----------------------------------------------------------------------------
 // Interface
-//   sign_i       : in  1     sign of the number to round
-//   exp_i        : in  8     exponent of the number to round
-//   mant_i       : in  24    mantissa of the number to round
-//   guard_i      : in  1     guard bit
-//   round_i      : in  1     round bit
-//   sticky_i     : in  1     sticky bit
-//   overflow_i   : in  1     overflow flag before rounding
-//   underflow_i  : in  1     underflow flag bejore rounding
-//   zero_i       : in  1     zero flag
-//   round_mode_i : in  3     rounding mode
+//   - sign_i       : in  1     sign of the number to round
+//   - exp_i        : in  8     exponent of the number to round
+//   - mant_i       : in  24    mantissa of the number to round
+//   - guard_i      : in  1     guard bit
+//   - round_i      : in  1     round bit
+//   - sticky_i     : in  1     sticky bit
+//   - overflow_i   : in  1     overflow flag before rounding
+//   - underflow_i  : in  1     underflow flag bejore rounding
+//   - zero_i       : in  1     zero flag
+//   - both_zero_i  : in  1     flag that indicates if both operands are zero
+//   (see Clause 6.3, paragraph 3, line 4)
+//   - round_mode_i : in  3     rounding mode
 //     000: RNE     Round to Nearest, ties to Even (default).
 //     001: RTZ     Round towards Zero.
 //     010: RDN     Round Down (towards $-\infty$).
 //     011: RUP     Round Up (towards $+\infty$).
 //     100: RMM     Round to Nearest, ties to Max Magnitude.
 //
-//   sign_o       : in  1     sign of the rounded number
-//   exp_o        : in  8     exponent of the rounded number
-//   frac_o       : in  23    fraction of the rounded number
-//   result_o     : in  32    rounded number
-//   overflow_o   : in  1     overflow flag after rounding
-//   underflow_o  : in  1     underflow flag after rounding
-//   inexact_o    : in  1     zero flag after
+//   - sign_o       : in  1     sign of the rounded number
+//   - exp_o        : in  8     exponent of the rounded number
+//   - frac_o       : in  23    fraction of the rounded number
+//   - result_o     : in  32    rounded number
+//   - overflow_o   : in  1     overflow flag after rounding
+//   - underflow_o  : in  1     underflow flag after rounding
+//   - inexact_o    : in  1     zero flag after
 //-----------------------------------------------------------------------------
 // Protocol
 //   No interface protocol is used for data.
@@ -55,7 +57,14 @@
 //   Combinational logic and continuous assignments
 //
 // Assumptions and limitations
-//   None
+//   - Inexact numeric floating-point results always have the same sign as the
+//   unrounded result.
+//   - NaN are not rounded.
+//   - When the result of an operation is exactly zero, the sign shall be +0
+//   for all rounding modes except for roundTowardNegative (RDN), which will
+//   be -0.
+//   - Under all rounding modes, if x is zero, then x+x and x-(-x) have the
+//   sign of x.
 //
 // Known issues
 //   None
@@ -98,6 +107,7 @@ module rounder #(
     input logic overflow_i,
     input logic underflow_i,
     input logic zero_i,
+    input logic both_zero_i,
 
     // round mode
     input logic [2:0] round_mode_i,
@@ -162,6 +172,8 @@ module rounder #(
   logic [EXP_WIDTH-1:0] exp_ovf;
   logic [FRAC_WIDTH-1:0] frac_ovf;
 
+  // underflow handling
+  logic is_tiny;
 
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
@@ -178,6 +190,9 @@ module rounder #(
   //   - Situation 2: the overflow ocurs during rounding (rounded exponent is
   //   all 1s)
   assign overflow_raw = overflow_i | (exp_r == EXP_ALL1);
+
+  // calculating tinyness
+  assign is_tiny = (exp_f == '0 && ~zero_i) | (mant_i == 24'h7FFFFF && ~round_i);
 
   // -------------------
   // COMBINATIONAL LOGIC
@@ -237,13 +252,29 @@ module rounder #(
     end
 
     // See Clause 6.3 paragraph 3 from the IEEE 754-2019 Std.
-    if (mant_i == '0 && round_mode_i == RDN) begin
-      sign_o   = 1;
-      result_o = {1'b1, exp_f, frac_f};
+    if (mant_i == '0 && round_mode_i == RDN && both_zero_i == 1'b0) begin
+      if (zero_i) begin
+        sign_o   = 1'b1;
+        result_o = {1'b1, exp_f, frac_f};
+      end else begin
+        sign_o   = sign_i;
+        result_o = {sign_i, exp_f, frac_f};
+      end
     end else begin
-      sign_o   = sign_i;
-      result_o = {sign_i, exp_f, frac_f};
+      if (mant_i == '0 && round_mode_i != RDN && both_zero_i == 1'b0) begin
+        if (zero_i) begin
+          sign_o   = 1'b0;
+          result_o = {1'b0, exp_f, frac_f};
+        end else begin
+          sign_o   = sign_i;
+          result_o = {sign_i, exp_f, frac_f};
+        end
+      end else begin
+        sign_o   = sign_i;
+        result_o = {sign_i, exp_f, frac_f};
+      end
     end
+
 
     exp_o = exp_f;
     frac_o = frac_f;
@@ -251,7 +282,10 @@ module rounder #(
     // flags
     overflow_o = overflow_raw & ~zero_i;
     inexact_o = (overflow_o) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i;
-    underflow_o = (exp_f == '0) & ~zero_i & inexact_o;
+    // The underflow flag can take these values:
+    //  - 0 if result is tiny and inexact
+    //  - 1 if the result is tiny but exact
+    underflow_o = (is_tiny && inexact_o) ? 1'b1 : 1'b0;
   end
 
 endmodule

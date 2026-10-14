@@ -817,6 +817,36 @@ async def run_cases(dut, cases):
 
 
 @cocotb.test()
+async def test_basic_cases(dut):
+    await run_cases(dut, F32_BASIC_CASES)
+
+
+@cocotb.test()
+async def test_signed_zero_cases(dut):
+    await run_cases(dut, F32_SIGNED_ZERO_CASES)
+
+
+@cocotb.test()
+async def test_rounding_cases(dut):
+    await run_cases(dut, F32_ROUNDING_CASES)
+
+
+@cocotb.test()
+async def test_overflow_cases(dut):
+    await run_cases(dut, F32_OVERFLOW_CASES)
+
+
+@cocotb.test()
+async def test_subnormal_cases(dut):
+    await run_cases(dut, F32_SUBNORMAL_CASES)
+
+
+@cocotb.test()
+async def test_specia_value_cases(dut):
+    await run_cases(dut, F32_SPECIAL_VALUE_CASES)
+
+
+@cocotb.test()
 async def test_all_cases(dut):
     """Run every directed case back to back."""
     await run_cases(dut, ALL_CASES)
