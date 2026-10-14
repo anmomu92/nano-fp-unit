@@ -211,7 +211,9 @@ module alu #(
       end
     end else sign_o = (op_code_i ^ sign_b_i) ? 1'b0 : 1'b1;
 
-    if (zero_o) sign_o = 0;
+    if (zero_o)
+      if (both_zero_o) sign_o = sign_a_i;
+      else sign_o = 1'b0;
   end
 
 endmodule
