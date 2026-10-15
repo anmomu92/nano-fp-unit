@@ -26,3 +26,8 @@ errors.txt
 cov_main.cpp
 cov_tb.sv
 run_coverage.sh
+questions.tex
+roadmap.tex
+tests.md
+gtkwave/
+tests.md
