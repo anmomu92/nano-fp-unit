@@ -67,7 +67,9 @@
 //   sign of x.
 //
 // Known issues
-//   None
+//   - Addition of two MAX values do not result in a infinity.
+//      TODO - in the rounder module raise the overflow flag after rounding if
+//      needed. Clause 7.4
 //-----------------------------------------------------------------------------
 // Verification status
 //   The testbench is located under the tb/alu directory.
@@ -211,9 +213,22 @@ module rounder #(
     endcase
   end
 
-  // OVERFLOW_HANDLING
-  // Description - calculates is used to handle overflow in different
-  // rounding modes according to RISC-V
+  // OVERFLOW_HANDLING - Clause 7.4 of IEEE 754-2019 Std.
+  // ----------------------------------------------------
+  // The overflow exception shall be signaled if and only if the destination format’s largest finite number is
+  // exceeded in magnitude by what would have been the rounded floating-point result (see Clause 4) were the
+  // exponent range unbounded. The default result shall be determined by the rounding-direction attribute and
+  // the sign of the intermediate result as follows:
+  //   a) roundTiesToEven and roundTiesToAway carry all overflows to ∞ with the sign of the
+  //   intermediate result.
+  //   b) roundTowardZero carries all overflows to the format’s largest finite number with the sign of the
+  //   intermediate result.
+  //   c) roundTowardNegative carries positive overflows to the format’s largest finite number, and carries
+  //   negative overflows to −∞.
+  //   d) roundTowardPositive carries negative overflows to the format’s most negative finite number, and
+  //   carries positive overflows to +∞.
+  // In addition, under default exception handling for overflow, the overflow flag shall be raised and the inexact
+  // exception shall be signaled.
   always_comb begin : OVERFLOW_HANDLING
     if (overflow_raw) begin
       case (round_mode_i)
@@ -231,7 +246,7 @@ module rounder #(
         end
         default: begin
           exp_ovf  = EXP_ALL1;
-          frac_ovf = frac_r;
+          frac_ovf = '0;
         end
       endcase
     end else begin

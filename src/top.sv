@@ -1,3 +1,83 @@
+//=============================================================================
+// File        : top.sv
+// Module      : top
+// Project     : nano-fp-unit
+// Author      : Antonio Moran Munoz, UCLM
+// Created     : 2026-07-16
+//-----------------------------------------------------------------------------
+// Purpose
+//   To perform arithmetic operations in binary32 encoded numbers as defined
+//   in the IEEE-754 Std.
+//
+// Specification
+//   No formal spec exists.
+//-----------------------------------------------------------------------------
+// Parameters
+//   WIDTH               : the width in bits of the number.   Default: 32
+//   MANT_WIDTH          : the width in bits of the mantissa. Default: 24
+//   EXP_WIDTH           : the width in bits of the exponent. Default: 8
+//   SHIFT_WIDTH         : the width in bits of shifting.     Default: 8
+//-----------------------------------------------------------------------------
+// Interface
+//   - clk_i        : in  1     clock signal
+//   - rst_n_i      : in  1     reset signal
+//   - num_a_i      : in  32    number a
+//   - num_b_i      : in  32    number b
+//   - format_a_i   : in  2     format of number a
+//   - format_b_i   : in  2     format of number b
+//   - op_code_i    : in  1     operation code
+//     0 : substraction
+//     1 : addition
+//   - round_mode_i : in  3     rounding mode
+//     000: RNE     Round to Nearest, ties to Even (default).
+//     001: RTZ     Round towards Zero.
+//     010: RDN     Round Down (towards $-\infty$).
+//     011: RUP     Round Up (towards $+\infty$).
+//     100: RMM     Round to Nearest, ties to Max Magnitude.
+//
+//   - result_o     : in  32    rounded number
+//   - overflow_o   : in  1     overflow flag
+//   - underflow_o  : in  1     underflow flag
+//   - inexact_o    : in  1     zero flag after
+//   - zero_o       : out 1     zero flag
+//-----------------------------------------------------------------------------
+// Protocol
+//   No interface protocol is used for data.
+//
+// Timing
+//   Latency         : none
+//   Throughput      : none
+//   Back-pressure   : none
+//
+// Clock domains
+//   None
+//-----------------------------------------------------------------------------
+// Implementation notes
+//   Combinational logic and continuous assignments
+//
+// Assumptions and limitations
+//   None
+//
+// Known issues
+//   - Addition of two MAX values do not result in a infinity.
+//      TODO - in the rounder module raise the overflow flag after rounding if
+//      needed
+//-----------------------------------------------------------------------------
+// Verification status
+//   The testbench is located under the tb/top directory.
+//   Not all directed tests passed.
+//
+// Synthesis / implementation status
+//   Not synthesized yet.
+//-----------------------------------------------------------------------------
+// Dependencies
+//   No dependencies.
+//-----------------------------------------------------------------------------
+// Revision history
+//   2026-07-16     Antonio Moran Munoz     Created module.
+//-----------------------------------------------------------------------------
+// GPL-3.0 License - UCLM
+//=============================================================================
 module top #(
     parameter int WIDTH = 32,
     parameter int MANT_WIDTH = 24,
