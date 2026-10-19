@@ -8,7 +8,7 @@
 
 </div>
 
-This unit is meant to perform IEEE 754-2019 arithmetic operations.
+This repository contains the source code of a digital unit that is meant to be compliant with the IEEE 754-2019 Std.
 
 So far, for the proper behavior of the unit, some asumptions must be taken into account:
 
@@ -21,33 +21,6 @@ So far, for the proper behavior of the unit, some asumptions must be taken into 
 
 ## Block Diagram
 
-![Block diagram of the unit.](block-diagram.drawio.png)
-## Simulations
+The structure of the design is depicted in the following block diagram:
 
-> [!NOTE]
-> 
-> So far, the testbenches are very simple and just test very basic cases.
-
-Within the `tb` directory there is one subdirectory for each of the modules implemented in `src`. In order to launch a given simulation, just run the following command from the root repository:
-
-```bash
-make <module-name>
-```
-
-Where `<module-name>` is the name of the module you want to test. Currently, the following modules are implemented:
-
-- `b32_adapter`
-- `exp_diff`
-- `alu`
-
-#### Example
-
-If you want to simulate the `alu.sv` module, run `make alu` from the root of the repository.
-
-## Features
-
-> [!WARNING]
-> 
-> The 16 bits from the *binary16* format have to be in the lower half of the 32-bit wide *num* input.
-
-- [x] *binary16* to *binary32* adaptation.
+![Block diagram of the unit.](docs/block-diagram.drawio.png)
