@@ -4,7 +4,7 @@ cocotb testbench for alu.sv
 DUT performs the arithmetic operation with the two significands.
 
 Outputs:
-    res_o - result of the arithmetic operation
+    mant_o - result of the arithmetic operation
     guard_o - guard bit
     round_o - round bit
     sticky_o - sticky bit
@@ -90,7 +90,7 @@ class AluInputs:
 @dataclass
 class AluOutputs:
     sign_o: int
-    res_o: int
+    mant_o: int
     guard_o: int
     round_o: int
     sticky_o: int
@@ -100,7 +100,7 @@ class AluOutputs:
     def __str__(self) -> str:
         return (
             f"\n\tsign_o={self.sign_o} \n"
-            f"\tres_o=0x{self.res_o:06x} \n"
+            f"\tmant_o=0x{self.mant_o:06x} \n"
             f"\tguard_o={self.guard_o} \n"
             f"\tround_o={self.round_o} \n"
             f"\tsticky_o={self.sticky_o} \n"
@@ -167,7 +167,7 @@ def golden_reference(inputs):
         zero = 1
 
     return AluOutputs(
-        res_o=(res_ext >> 3) & MANT_MASK,
+        mant_o=(res_ext >> 3) & MANT_MASK,
         guard_o=(res_ext >> 2) & 1,
         round_o=(res_ext >> 1) & 1,
         sticky_o=res_ext & 1,
@@ -194,7 +194,7 @@ async def drive_dut(dut, inputs):
     await SETTLE
 
     return AluOutputs(
-        res_o=int(dut.res_o.value),
+        mant_o=int(dut.mant_o.value),
         guard_o=int(dut.guard_o.value),
         round_o=int(dut.round_o.value),
         sticky_o=int(dut.sticky_o.value),
@@ -372,7 +372,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0xC00000,
+            mant_o=0xC00000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -395,7 +395,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x000000,
+            mant_o=0x000000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -418,7 +418,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x800000,
+            mant_o=0x800000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -441,7 +441,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x400000,
+            mant_o=0x400000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -464,7 +464,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x000000,
+            mant_o=0x000000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -487,7 +487,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x000000,
+            mant_o=0x000000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -510,7 +510,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x100000,
+            mant_o=0x100000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -533,7 +533,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x800001,
+            mant_o=0x800001,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -556,7 +556,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x800001,
+            mant_o=0x800001,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -579,7 +579,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x800001,
+            mant_o=0x800001,
             guard_o=1,
             round_o=0,
             sticky_o=1,
@@ -602,7 +602,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x7FFFFF,
+            mant_o=0x7FFFFF,
             guard_o=1,
             round_o=0,
             sticky_o=0,
@@ -625,7 +625,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x400000,
+            mant_o=0x400000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -648,7 +648,7 @@ DIRECTED_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x480000,
+            mant_o=0x480000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -678,7 +678,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0xFFFFFE,
+            mant_o=0xFFFFFE,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -701,7 +701,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x7FFFFE,
+            mant_o=0x7FFFFE,
             guard_o=1,
             round_o=0,
             sticky_o=0,
@@ -724,7 +724,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0xFFFFFE,
+            mant_o=0xFFFFFE,
             guard_o=1,
             round_o=0,
             sticky_o=0,
@@ -747,7 +747,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x7FFFFF,
+            mant_o=0x7FFFFF,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -770,7 +770,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x7FFFFF,
+            mant_o=0x7FFFFF,
             guard_o=1,
             round_o=1,
             sticky_o=1,
@@ -793,7 +793,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0xFFFFFE,
+            mant_o=0xFFFFFE,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -816,7 +816,7 @@ CORNER_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x400000,
+            mant_o=0x400000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -847,7 +847,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x800000,
+            mant_o=0x800000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -870,7 +870,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x800000,
+            mant_o=0x800000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -893,7 +893,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x000000,
+            mant_o=0x000000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -916,7 +916,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0xFFFFFE,
+            mant_o=0xFFFFFE,
             guard_o=1,
             round_o=1,
             sticky_o=1,
@@ -939,7 +939,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0xFFFFFF,
+            mant_o=0xFFFFFF,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -962,7 +962,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0xFFFFFF,
+            mant_o=0xFFFFFF,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -985,7 +985,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x000000,
+            mant_o=0x000000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -1008,7 +1008,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x000000,
+            mant_o=0x000000,
             guard_o=0,
             round_o=0,
             sticky_o=1,
@@ -1031,7 +1031,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0xFFFFFF,
+            mant_o=0xFFFFFF,
             guard_o=1,
             round_o=1,
             sticky_o=1,
@@ -1054,7 +1054,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x000002,
+            mant_o=0x000002,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -1077,7 +1077,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=1,
-            res_o=0x000001,
+            mant_o=0x000001,
             guard_o=0,
             round_o=0,
             sticky_o=0,
@@ -1100,7 +1100,7 @@ UNREACHABLE_CASES = [
         ),
         AluOutputs(
             sign_o=0,
-            res_o=0x400000,
+            mant_o=0x400000,
             guard_o=0,
             round_o=0,
             sticky_o=0,
