@@ -146,8 +146,8 @@ module alu #(
   logic [FULL_WIDTH-1:0] raw_sum;  // the result of the operation has to include the carry bit
 
   logic carry_raw;
-  logic [FULL_WIDTH-1:0] sum;  // this signal carries the sum of the operation
-  logic [FULL_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
+  logic [EXT_WIDTH-1:0] sum;  // this signal carries the sum of the operation
+  logic [EXT_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
 
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
