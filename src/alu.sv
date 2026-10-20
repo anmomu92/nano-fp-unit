@@ -133,8 +133,8 @@ module alu #(
   // ----------------
   // LOCAL PARAMETERS
   // ----------------
-  localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits
-  localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width
+  localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits = 27
+  localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width = 28
 
   // ----------------
   // INTERNAL SIGNALS
@@ -143,18 +143,15 @@ module alu #(
   logic magnitude_add;  // this signal indicates if the magnitudes have to be added, regardless of the operation type
   logic [FULL_WIDTH-1:0] op_a;
   logic [FULL_WIDTH-1:0] op_b;
-  logic [FULL_WIDTH-1:0] raw_sum;  // the result of the operation has to include the carry bit
 
   logic carry_raw;
-  logic [FULL_WIDTH-1:0] sum;  // this signal carries the sum of the operation
-  logic [FULL_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
+  logic [EXT_WIDTH-1:0] sum;  // this signal carries the sum of the operation
+  logic [EXT_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
 
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
   // ----------------------
   assign eff_sign_b = ~op_code_i ^ sign_b_i;
-  assign carry_raw = raw_sum[EXT_WIDTH];
-  assign sum = raw_sum[EXT_WIDTH-1:0];
   assign magnitude_add = op_code_i ^ sign_a_i ^ sign_b_i;
 
   assign carry_o = magnitude_add && carry_raw;
@@ -188,18 +185,22 @@ module alu #(
   always_comb begin : OPERATION
     unique case (magnitude_add)
       1'b0: begin  // substraction (2's complement)
-        raw_sum = op_a + ~op_b + {{FULL_WIDTH{1'b0}}, 1'b1};
+        {carry_raw, sum} = op_a + ~op_b + {{FULL_WIDTH{1'b0}}, 1'b1};
       end
       1'b1: begin  // addition
-        raw_sum = op_a + op_b;
+        {carry_raw, sum} = op_a + op_b;
       end
-      default: raw_sum = '0;
+      default: {carry_raw, sum} = '0;
     endcase
   end
 
   always_comb begin : ABSOLUTE_VALUE
+    // if there was a carry but the magnitudes were subtracted, it means the
+    // result is negative
     if (carry_raw && !magnitude_add) abs_value = ~sum + {{EXT_WIDTH - 1{1'b0}}, 1'b1};
-    else abs_value = sum;
+    // else the result is positive
+    else
+      abs_value = sum;
   end
 
   always_comb begin : SIGN_VALUE

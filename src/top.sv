@@ -119,6 +119,8 @@ module top #(
   logic sign_b;
   logic [EXP_WIDTH-1:0] exp_a;
   logic [EXP_WIDTH-1:0] exp_b;
+  logic [EXP_WIDTH-1:0] eff_exp_a;
+  logic [EXP_WIDTH-1:0] eff_exp_b;
   logic [EXP_WIDTH-1:0] exp_big;  // it holds the bigger exponent
   logic [MANT_WIDTH-1:0] shifted_mant;
   logic [MANT_WIDTH-1:0] unshifted_mant;
@@ -154,8 +156,16 @@ module top #(
   // ----------------------
   assign sign_a = b32_num_a[WIDTH-1];
   assign sign_b = b32_num_b[WIDTH-1];
-  assign exp_a = b32_num_a[WIDTH-2:23];
-  assign exp_b = b32_num_b[WIDTH-2:23];
+  assign exp_a = b32_num_a[WIDTH-2:MANT_WIDTH-1];
+  assign exp_b = b32_num_b[WIDTH-2:MANT_WIDTH-1];
+  // WARNING
+  // -------------------------------------------------------------------------
+  // when a number is subnormal, the exponent field is 0, but the real value
+  // is emin = -126, so in order to calculate the exponent difference, we have
+  // to take this into account and adjust the exponent. E = emin + bias = -126
+  // + 127 = 1
+  assign eff_exp_a = (b32_sub_a_alu) ? 1'b1 : b32_num_a[WIDTH-2:MANT_WIDTH-1];
+  assign eff_exp_b = (b32_sub_b_alu) ? 1'b1 : b32_num_b[WIDTH-2:MANT_WIDTH-1];
   assign implicit_a = (exp_a) ? 1'b1 : 1'b0;
   assign implicit_b = (exp_b) ? 1'b1 : 1'b0;
   assign exp_big = (exp_a > exp_b) ? exp_a : exp_b;
@@ -216,8 +226,8 @@ module top #(
       .EXP_WIDTH(EXP_WIDTH)
   ) exp_diff_inst (
       // inputs
-      .exp_a_i(exp_a),
-      .exp_b_i(exp_b),
+      .exp_a_i(eff_exp_a),
+      .exp_b_i(eff_exp_b),
 
       // outputs
       .shift_o(shift),
