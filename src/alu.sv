@@ -133,8 +133,8 @@ module alu #(
   // ----------------
   // LOCAL PARAMETERS
   // ----------------
-  localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits
-  localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width
+  localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits = 27
+  localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width = 28
 
   // ----------------
   // INTERNAL SIGNALS
@@ -198,8 +198,12 @@ module alu #(
   end
 
   always_comb begin : ABSOLUTE_VALUE
+    // if there was a carry but the magnitudes were subtracted, it means the
+    // result is negative
     if (carry_raw && !magnitude_add) abs_value = ~sum + {{EXT_WIDTH - 1{1'b0}}, 1'b1};
-    else abs_value = sum;
+    // else the result is positive
+    else
+      abs_value = sum;
   end
 
   always_comb begin : SIGN_VALUE
