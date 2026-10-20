@@ -221,17 +221,17 @@ module normalizer #(
   // The exponent cannot be substracted to a value lower than 0 because it
   // would wrap to 255, therefore: exponent - lzc >= 1
   // Doing an arithmetic rearrangement we get the following formula:
-  // lzc <= exponent - 1, we give exponent - 1 the name of headroom
+  // lzc <= exponent - 1, and we give exponent - 1 the name of headroom
   always_comb begin : SUBNORMAL_CASE
     lz_raw   = lzc(extended_mant[EXT_WIDTH-1:0]);
     headroom = (exp_i == '0) ? '0 : (exp_i - 1'b1);
 
     if ({{(EXP_WIDTH - SHIFT_WIDTH) {1'b0}}, lz_raw} <= headroom) begin
-      // the result of the normalization will be subnormal
+      // the result of the normalization will be normal
       lz_eff = lz_raw;
       subnormal_result = 1'b0;
     end else begin
-      // the result of the normalization will be normal
+      // the result of the normalization will be subnormal
       lz_eff = headroom[SHIFT_WIDTH-1:0];
       subnormal_result = 1'b1;
     end
