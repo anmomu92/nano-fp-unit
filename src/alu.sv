@@ -141,9 +141,8 @@ module alu #(
   // ----------------
   // LOCAL PARAMETERS
   // ----------------
-  localparam int EXT_WIDTH = MANT_WIDTH + 3;  // mantissa width + grs bits = 27
-  localparam int FULL_WIDTH = EXT_WIDTH + 1;  // carry bit + extended width = 28
-  localparam int MAX_MANT = {MANT_WIDTH{1'b1}};
+  localparam int EXT_WIDTH  = MANT_WIDTH + 3;  // mantissa width + grs bits = 27
+  localparam int FULL_WIDTH = EXT_WIDTH + 1;   // carry bit + extended width = 28
 
   // ----------------
   // INTERNAL SIGNALS
@@ -164,7 +163,7 @@ module alu #(
   assign magnitude_add = op_code_i ^ sign_a_i ^ sign_b_i;
 
   assign carry_o = magnitude_add && carry_raw;
-  assign mant_o = (infty_a_i | infty_b_i) ? MAX_MANT : abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
+  assign mant_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
   assign guard_o = abs_value[2];
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
