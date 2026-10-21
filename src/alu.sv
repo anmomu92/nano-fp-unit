@@ -44,6 +44,7 @@
 //   - carry_o      : out 1     carry flag    TODO - refactor signal to overflow
 //   - zero_o       : out 1     zero flag
 //   - both_zero_o  : out 1     flag that indicates if both operands are zero
+//   - any_infty_o  : out 1     flag that indicates if any operand is infinite
 //   (see Clause 6.3, paragraph 3, line 4)
 //-----------------------------------------------------------------------------
 // Protocol
@@ -135,7 +136,8 @@ module alu #(
 
     output logic carry_o,
     output logic zero_o,
-    output logic both_zero_o
+    output logic both_zero_o,
+    output logic any_infty_o
 );
 
   // ----------------
@@ -172,6 +174,7 @@ module alu #(
   //    this means the mantissa is zero because it overflowed
   assign zero_o = (mant_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
   assign both_zero_o = (magnitude_add && zero_a_i && zero_b_i);
+  assign any_infty_o = (infty_a_i | infty_b_i);
 
   // -------------------
   // COMBINATIONAL LOGIC
