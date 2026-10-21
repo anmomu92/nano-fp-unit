@@ -138,7 +138,8 @@ module alu #(
     output logic carry_o,
     output logic zero_o,
     output logic both_zero_o,
-    output logic any_infty_o
+    output logic any_infty_o,
+    output logic invalid_o
 );
 
   // ----------------
