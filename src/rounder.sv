@@ -26,8 +26,7 @@
 //   - underflow_i  : in  1     underflow flag bejore rounding
 //   - zero_i       : in  1     zero flag
 //   - both_zero_i  : in  1     flag that indicates if both operands are zero
-//   - any_infty_i  : in  1     flag that indicates if any of the operands are
-//   infinite
+//   - any_infty_i  : in  1     flag that indicates if any operands is infinite
 //   (see Clause 6.3, paragraph 3, line 4)
 //   - round_mode_i : in  3     rounding mode
 //     000: RNE     Round to Nearest, ties to Even (default).
