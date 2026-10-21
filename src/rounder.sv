@@ -26,6 +26,8 @@
 //   - underflow_i  : in  1     underflow flag bejore rounding
 //   - zero_i       : in  1     zero flag
 //   - both_zero_i  : in  1     flag that indicates if both operands are zero
+//   - any_infty_i  : in  1     flag that indicates if any of the operands are
+//   infinite
 //   (see Clause 6.3, paragraph 3, line 4)
 //   - round_mode_i : in  3     rounding mode
 //     000: RNE     Round to Nearest, ties to Even (default).
@@ -110,6 +112,7 @@ module rounder #(
     input logic underflow_i,
     input logic zero_i,
     input logic both_zero_i,
+    input logic any_infty_i,
 
     // round mode
     input logic [2:0] round_mode_i,
@@ -191,7 +194,7 @@ module rounder #(
   //   (overflow_i == 1)
   //   - Situation 2: the overflow ocurs during rounding (rounded exponent is
   //   all 1s)
-  assign overflow_raw = overflow_i | (exp_r == EXP_ALL1);
+  assign overflow_raw = (overflow_i | (exp_r == EXP_ALL1)) & ~any_infty_i;
 
   // calculating tinyness
   assign is_tiny = (exp_f == '0 && ~zero_i) | (mant_i == 24'h7FFFFF && ~round_i);
