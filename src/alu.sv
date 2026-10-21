@@ -31,6 +31,10 @@
 //     1 : swapping
 //   - zero_a_i     : in  1     zero flag for operand a
 //   - zero_b_i     : in  1     zero flag for operand b
+//   - infty_a_i    : in  1     infinity flag for operand a
+//   - infty_b_i    : in  1     infinity flag for operand b
+//   - nan_a_i      : in  1     NaN flag for operand a
+//   - nan_b_i      : in  1     NaN flag for operand b
 //
 //   - sign_o       : out 1     resulting sign
 //   - mant_o        : out 24    resulting mantissa
