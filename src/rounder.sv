@@ -262,7 +262,10 @@ module rounder #(
   end
 
   always_comb begin : OUTPUT_LOGIC
-    if (zero_i) begin
+    if (invalid_i) begin
+      exp_f  = EXP_ALL1;
+      frac_f = mant_i[FRAC_WIDTH-1:0];
+    end else if (zero_i) begin
       exp_f = '0;
       frac_f = '0;
       overflow_o = '0;
@@ -295,7 +298,6 @@ module rounder #(
         result_o = {sign_i, exp_f, frac_f};
       end
     end
-
 
     exp_o = exp_f;
     frac_o = frac_f;
