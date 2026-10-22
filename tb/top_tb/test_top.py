@@ -1047,7 +1047,7 @@ async def test_subnormal_cases(dut):
 
 
 @cocotb.test()
-async def test_specia_value_cases(dut):
+async def test_special_value_cases(dut):
     await run_cases(dut, F32_SPECIAL_VALUE_CASES)
 
 

@@ -23,9 +23,11 @@
 //   - round_i      : in  1     round bit
 //   - sticky_i     : in  1     sticky bit
 //   - overflow_i   : in  1     overflow flag before rounding
-//   - underflow_i  : in  1     underflow flag bejore rounding
-//   - zero_i       : in  1     zero flag
+//   - underflow_i  : in  1     underflow flag before rounding
+//   - zero_i       : in  1     zero flag before rounding
 //   - both_zero_i  : in  1     flag that indicates if both operands are zero
+//   - any_infty_i  : in  1     flag that indicates if any operands is infinite
+//   - invalid_i    : in  1     flag that indicates if the operation is invalid
 //   (see Clause 6.3, paragraph 3, line 4)
 //   - round_mode_i : in  3     rounding mode
 //     000: RNE     Round to Nearest, ties to Even (default).
@@ -40,7 +42,8 @@
 //   - result_o     : in  32    rounded number
 //   - overflow_o   : in  1     overflow flag after rounding
 //   - underflow_o  : in  1     underflow flag after rounding
-//   - inexact_o    : in  1     zero flag after
+//   - inexact_o    : in  1     inexact flag after rounding
+//   - zero_o       : in  1     zero flag after rounding
 //-----------------------------------------------------------------------------
 // Protocol
 //   No interface protocol is used for data.
@@ -110,6 +113,8 @@ module rounder #(
     input logic underflow_i,
     input logic zero_i,
     input logic both_zero_i,
+    input logic any_infty_i,
+    input logic invalid_i,
 
     // round mode
     input logic [2:0] round_mode_i,
@@ -126,8 +131,8 @@ module rounder #(
     // status flags
     output logic overflow_o,
     output logic underflow_o,
-    output logic inexact_o
-
+    output logic inexact_o,
+    output logic zero_o
 );
 
   // ----------------
@@ -191,7 +196,8 @@ module rounder #(
   //   (overflow_i == 1)
   //   - Situation 2: the overflow ocurs during rounding (rounded exponent is
   //   all 1s)
-  assign overflow_raw = overflow_i | (exp_r == EXP_ALL1);
+  assign overflow_raw = (overflow_i | (exp_r == EXP_ALL1)) & ~any_infty_i;
+  assign zero_o = (invalid_i) ? 1'b0 : zero_i;
 
   // calculating tinyness
   assign is_tiny = (exp_f == '0 && ~zero_i) | (mant_i == 24'h7FFFFF && ~round_i);
@@ -256,7 +262,10 @@ module rounder #(
   end
 
   always_comb begin : OUTPUT_LOGIC
-    if (zero_i) begin
+    if (invalid_i) begin
+      exp_f  = EXP_ALL1;
+      frac_f = mant_i[FRAC_WIDTH-1:0];
+    end else if (zero_i) begin
       exp_f = '0;
       frac_f = '0;
       overflow_o = '0;
@@ -290,17 +299,16 @@ module rounder #(
       end
     end
 
-
     exp_o = exp_f;
     frac_o = frac_f;
 
     // flags
-    overflow_o = overflow_raw & ~zero_i;
-    inexact_o = (overflow_o) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i;
+    overflow_o = overflow_raw & ~zero_i & ~invalid_i;
+    inexact_o = (overflow_o & ~invalid_i) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i & ~any_infty_i;
     // The underflow flag can take these values:
     //  - 0 if result is tiny and inexact
     //  - 1 if the result is tiny but exact
-    underflow_o = (is_tiny && inexact_o) ? 1'b1 : 1'b0;
+    underflow_o = (is_tiny & inexact_o & ~invalid_i) ? 1'b1 : 1'b0;
   end
 
 endmodule

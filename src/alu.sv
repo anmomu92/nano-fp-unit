@@ -31,6 +31,10 @@
 //     1 : swapping
 //   - zero_a_i     : in  1     zero flag for operand a
 //   - zero_b_i     : in  1     zero flag for operand b
+//   - infty_a_i    : in  1     infinity flag for operand a
+//   - infty_b_i    : in  1     infinity flag for operand b
+//   - nan_a_i      : in  1     NaN flag for operand a
+//   - nan_b_i      : in  1     NaN flag for operand b
 //
 //   - sign_o       : out 1     resulting sign
 //   - mant_o        : out 24    resulting mantissa
@@ -40,6 +44,8 @@
 //   - carry_o      : out 1     carry flag    TODO - refactor signal to overflow
 //   - zero_o       : out 1     zero flag
 //   - both_zero_o  : out 1     flag that indicates if both operands are zero
+//   - any_infty_o  : out 1     flag that indicates if any operand is infinite
+//   - invalid_o    : out 1     flag that indicates if the operations is invalid
 //   (see Clause 6.3, paragraph 3, line 4)
 //-----------------------------------------------------------------------------
 // Protocol
@@ -113,9 +119,13 @@ module alu #(
     input logic round_i,
     input logic sticky_i,
 
-    input logic swap_i,    // indicates if operands were swapped during exp_diff
+    input logic swap_i,  // indicates if operands were swapped during exp_diff
     input logic zero_a_i,
     input logic zero_b_i,
+    input logic infty_a_i,
+    input logic infty_b_i,
+    input logic nan_a_i,
+    input logic nan_b_i,
 
     // outputs
     output logic [MANT_WIDTH-1:0] mant_o,
@@ -127,7 +137,9 @@ module alu #(
 
     output logic carry_o,
     output logic zero_o,
-    output logic both_zero_o
+    output logic both_zero_o,
+    output logic any_infty_o,
+    output logic invalid_o
 );
 
   // ----------------
@@ -148,6 +160,9 @@ module alu #(
   logic [EXT_WIDTH-1:0] sum;  // this signal carries the sum of the operation
   logic [EXT_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
 
+  // invalid operations
+  logic invalid_1;  // magnitude substraction between infinite operands
+
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
   // ----------------------
@@ -155,15 +170,18 @@ module alu #(
   assign magnitude_add = op_code_i ^ sign_a_i ^ sign_b_i;
 
   assign carry_o = magnitude_add && carry_raw;
-  assign mant_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
   assign guard_o = abs_value[2];
   assign round_o = abs_value[1];
   assign sticky_o = abs_value[0];
 
+  // Flags
+  // -----
   // zero should not be set if carry_o is one even if the result is zero:
   //    this means the mantissa is zero because it overflowed
   assign zero_o = (mant_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
   assign both_zero_o = (magnitude_add && zero_a_i && zero_b_i);
+  assign any_infty_o = (infty_a_i | infty_b_i);
+  assign invalid_o = invalid_1;
 
   // -------------------
   // COMBINATIONAL LOGIC
@@ -215,6 +233,14 @@ module alu #(
     if (zero_o)
       if (both_zero_o) sign_o = sign_a_i;
       else sign_o = 1'b0;
+  end
+
+  always_comb begin : INVALID
+    invalid_1 = 1'b0;
+    if (infty_a_i & infty_b_i & ~magnitude_add) begin
+      invalid_1 = 1'b1;
+      mant_o = {3'b011, {MANT_WIDTH - 3{1'b0}}};
+    end else mant_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
   end
 
 endmodule

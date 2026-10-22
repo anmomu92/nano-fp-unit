@@ -144,6 +144,8 @@ module top #(
   logic b32_zero_a_alu, b32_infty_a_alu, b32_nan_a_alu, b32_sub_a_alu;
   logic b32_zero_b_alu, b32_infty_b_alu, b32_nan_b_alu, b32_sub_b_alu;
   logic alu_both_round;
+  logic alu_any_round;
+  logic alu_invalid_round;
 
   // other
   logic swap;  // 0=A, 1=B
@@ -266,8 +268,12 @@ module top #(
       .swap_i(swap),
       .op_code_i(op_code_i),
 
-      .zero_a_i(b32_zero_a_alu),
-      .zero_b_i(b32_zero_b_alu),
+      .zero_a_i (b32_zero_a_alu),
+      .zero_b_i (b32_zero_b_alu),
+      .infty_a_i(b32_infty_a_alu),
+      .infty_b_i(b32_infty_b_alu),
+      .nan_a_i  (),
+      .nan_b_i  (),
 
       // outputs
       .sign_o(alu_sign_norm),
@@ -279,7 +285,9 @@ module top #(
 
       .carry_o(alu_overflow_norm),
       .zero_o(alu_zero_norm),
-      .both_zero_o(alu_both_round)
+      .both_zero_o(alu_both_round),
+      .any_infty_o(alu_any_round),
+      .invalid_o(alu_invalid_round)
   );
 
   normalizer #(
@@ -309,7 +317,7 @@ module top #(
 
       .overflow_o(norm_overflow_round),
       .underflow_o(norm_underflow_round),
-      .zero_o(zero_o)
+      .zero_o()
   );
 
   rounder #(
@@ -327,8 +335,10 @@ module top #(
 
       .overflow_i(norm_overflow_round),  // TODO - rename the carry flag in ALU module
       .underflow_i(norm_underflow_round),  // TODO - include flag in ALU module
-      .zero_i(zero_o),
+      .zero_i(alu_zero_norm),
       .both_zero_i(alu_both_round),
+      .any_infty_i(alu_any_round),
+      .invalid_i(alu_invalid_round),
 
       .round_mode_i(round_mode_i),
 
@@ -340,9 +350,10 @@ module top #(
       .result_o(result_o),
 
       // TODO - include zero flag here and in the rounder module
-      .overflow_o (overflow_o),
+      .overflow_o(overflow_o),
       .underflow_o(underflow_o),
-      .inexact_o  (inexact_o)
+      .inexact_o(inexact_o),
+      .zero_o(zero_o)
   );
 
 endmodule
