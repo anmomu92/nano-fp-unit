@@ -161,7 +161,7 @@ module alu #(
   logic [EXT_WIDTH-1:0] abs_value;  // this signal carries the absolute value of the result
 
   // invalid operations
-  logic invalid_1;  // magnitude substraction between infinite operands
+  logic invalid_1, invalid_2;  // magnitude substraction between infinite operands
 
   // ----------------------
   // CONTINUOUS ASSIGNMENTS
@@ -181,7 +181,7 @@ module alu #(
   assign zero_o = (mant_o || carry_o || guard_i || round_i || sticky_i) ? 0 : 1;
   assign both_zero_o = (magnitude_add && zero_a_i && zero_b_i);
   assign any_infty_o = (infty_a_i | infty_b_i);
-  assign invalid_o = invalid_1;
+  assign invalid_o = invalid_1 | invalid_2;
 
   // -------------------
   // COMBINATIONAL LOGIC
@@ -237,9 +237,16 @@ module alu #(
 
   always_comb begin : INVALID
     invalid_1 = 1'b0;
+    invalid_2 = 1'b0;
     if (infty_a_i & infty_b_i & ~magnitude_add) begin
       invalid_1 = 1'b1;
       mant_o = {3'b011, {MANT_WIDTH - 3{1'b0}}};
+    end else if (nan_a_i) begin
+      invalid_2 = 1'b1;
+      mant_o = mant_a_i;
+    end else if (nan_b_i) begin
+      invalid_2 = 1'b1;
+      mant_o = mant_b_i;
     end else mant_o = abs_value[EXT_WIDTH-1:3];  // remove carry and grs bits
   end
 

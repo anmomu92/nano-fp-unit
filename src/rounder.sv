@@ -304,7 +304,7 @@ module rounder #(
 
     // flags
     overflow_o = overflow_raw & ~zero_i & ~invalid_i;
-    inexact_o = (overflow_o & ~invalid_i) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i & ~any_infty_i;
+    inexact_o = (overflow_o & ~invalid_i) ? 1'b1 : (guard_i | round_i | sticky_i) & ~zero_i & ~any_infty_i & ~invalid_i;
     // The underflow flag can take these values:
     //  - 0 if result is tiny and inexact
     //  - 1 if the result is tiny but exact

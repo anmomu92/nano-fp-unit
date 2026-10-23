@@ -272,8 +272,8 @@ module top #(
       .zero_b_i (b32_zero_b_alu),
       .infty_a_i(b32_infty_a_alu),
       .infty_b_i(b32_infty_b_alu),
-      .nan_a_i  (),
-      .nan_b_i  (),
+      .nan_a_i  (b32_nan_a_alu),
+      .nan_b_i  (b32_nan_b_alu),
 
       // outputs
       .sign_o(alu_sign_norm),
